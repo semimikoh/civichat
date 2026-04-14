@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Text, Badge, Group, Stack, Anchor, Divider } from '@mantine/core';
+import { Card, Text, Badge, Group, Stack, ActionIcon, Divider } from '@mantine/core';
 import type { SearchResult } from '@/core/search/benefit';
 
 interface BenefitCardProps {
@@ -8,16 +8,43 @@ interface BenefitCardProps {
   index: number;
 }
 
+function LinkIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </svg>
+  );
+}
+
 export function BenefitCard({ result, index }: BenefitCardProps) {
+  const linkUrl = result.detailUrl || result.onlineApplicationUrl;
+
   return (
     <Card withBorder padding="md" radius="md" role="article" aria-label={result.serviceName}>
-      <Group justify="space-between" mb="xs">
-        <Text fw={700} size="sm" lineClamp={1} flex={1}>
-          {index + 1}. {result.serviceName}
-        </Text>
-        <Badge size="sm" variant="light" color="blue" flex="none">
-          {(result.similarity * 100).toFixed(0)}% 일치
-        </Badge>
+      <Group justify="space-between" mb="xs" wrap="nowrap">
+        <Group gap="xs" wrap="nowrap" flex={1} style={{ minWidth: 0 }}>
+          <Text fw={700} size="sm" lineClamp={1} flex={1}>
+            {index + 1}. {result.serviceName}
+          </Text>
+          <Badge size="xs" variant="light" color="blue" flex="none">
+            {(result.similarity * 100).toFixed(0)}%
+          </Badge>
+        </Group>
+        {linkUrl && (
+          <ActionIcon
+            component="a"
+            href={linkUrl}
+            target="_blank"
+            variant="subtle"
+            size="sm"
+            aria-label="상세 페이지 열기"
+            flex="none"
+          >
+            <LinkIcon />
+          </ActionIcon>
+        )}
       </Group>
 
       {result.supportType && (
@@ -60,27 +87,6 @@ export function BenefitCard({ result, index }: BenefitCardProps) {
             <Text size="xs">{result.contactPhone.split('||').join(' / ')}</Text>
           </div>
         )}
-
-        <Group gap="md">
-          {result.detailUrl && (
-            <Anchor
-              href={result.detailUrl}
-              target="_blank"
-              size="xs"
-            >
-              상세 정보
-            </Anchor>
-          )}
-          {result.onlineApplicationUrl && (
-            <Anchor
-              href={result.onlineApplicationUrl}
-              target="_blank"
-              size="xs"
-            >
-              온라인 신청
-            </Anchor>
-          )}
-        </Group>
       </Stack>
     </Card>
   );
