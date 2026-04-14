@@ -71,6 +71,24 @@ export interface SearchOptions {
   matchThreshold?: number;
 }
 
+// --- 서비스명 매칭 부스트: 쿼리 키워드가 서비스명에 포함되면 유사도 가산 ---
+
+function applyNameBoost(results: SearchResult[], userQuery: string): SearchResult[] {
+  const queryWords = userQuery.replace(/[^가-힣a-zA-Z0-9\s]/g, '').split(/\s+/).filter((w) => w.length >= 2);
+  if (queryWords.length === 0) return results;
+
+  const boosted = results.map((r) => {
+    const name = r.serviceName;
+    const matchCount = queryWords.filter((w) => name.includes(w)).length;
+    const matchRatio = matchCount / queryWords.length;
+    // 서비스명에 쿼리 키워드가 많이 겹칠수록 부스트 (최대 +0.15)
+    const boost = matchRatio * 0.15;
+    return { ...r, similarity: Math.min(r.similarity + boost, 1) };
+  });
+
+  return boosted.sort((a, b) => b.similarity - a.similarity);
+}
+
 // --- 컨텍스트 불일치 필터: 사용자가 언급하지 않은 특수 대상 서비스 제외 ---
 
 const TOPIC_FILTERS: { queryPattern: RegExp; textPattern: RegExp }[] = [
@@ -181,7 +199,7 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
     };
   }
 
-  // 2. 벡터 검색 실행
+  // 2. 하이브리드 검색 실행 (벡터 + 키워드 + RRF)
   const conditions = analysis.conditions;
   const searchText = conditions.region
     ? conditions.keywords.join(' ') || conditions.searchQuery
@@ -190,31 +208,17 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
 
   const supabase = getSupabaseClient();
 
-  let data: Record<string, unknown>[] | null;
-  let error: { message: string } | null;
-
-  if (conditions.region) {
-    const res = await supabase.rpc('match_benefits_by_region', {
-      query_embedding: JSON.stringify(queryEmbedding),
-      region_filter: conditions.region,
-      province_filter: conditions.regionProvince,
-      match_threshold: matchThreshold,
-      match_count: matchCount * 5,
-    });
-    data = res.data;
-    error = res.error;
-  } else {
-    const res = await supabase.rpc('match_benefits', {
-      query_embedding: JSON.stringify(queryEmbedding),
-      match_threshold: matchThreshold,
-      match_count: matchCount * 10,
-    });
-    data = res.data;
-    error = res.error;
-  }
+  const { data, error } = await supabase.rpc('match_benefits_hybrid', {
+    query_embedding: JSON.stringify(queryEmbedding),
+    query_text: searchText,
+    region_filter: conditions.region,
+    province_filter: conditions.regionProvince,
+    match_threshold: matchThreshold,
+    match_count: matchCount * 5,
+  });
 
   if (error) {
-    throw new Error(`벡터 검색 실패: ${error.message}`);
+    throw new Error(`하이브리드 검색 실패: ${error.message}`);
   }
 
   const parsed = z.array(rpcRowSchema).safeParse(data ?? []);
@@ -251,6 +255,9 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
 
   // 5. 컨텍스트 불일치 필터
   results = applyContextFilter(results, query);
+
+  // 6. 서비스명 매칭 부스트
+  results = applyNameBoost(results, query);
 
   const finalResults = results.slice(0, matchCount);
   const condParts: string[] = [];
