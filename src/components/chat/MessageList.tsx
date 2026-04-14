@@ -1,6 +1,6 @@
 'use client';
 
-import { Stack, Paper, Text, Box } from '@mantine/core';
+import { Paper, Text, Box } from '@mantine/core';
 import Markdown from 'react-markdown';
 import { useMessageVirtualizer } from '@/lib/text-layout/use-message-height';
 import { StaggeredResults } from '@/components/chat/StaggeredResults';

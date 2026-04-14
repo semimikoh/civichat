@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Stack } from '@mantine/core';
 import { BenefitCard } from '@/components/chat/BenefitCard';
 import type { SearchResult } from '@/core/search/benefit';
@@ -9,44 +9,34 @@ interface StaggeredResultsProps {
   results: SearchResult[];
 }
 
-export function StaggeredResults({ results }: StaggeredResultsProps) {
-  const [visibleCount, setVisibleCount] = useState(0);
-  const resultsRef = useRef(results);
+function StaggeredResultsInner({ results }: StaggeredResultsProps) {
+  const [visibleCount, setVisibleCount] = useState(1);
 
   useEffect(() => {
-    resultsRef.current = results;
-    setVisibleCount(0);
-    if (results.length === 0) return;
+    if (visibleCount >= results.length) return;
 
-    let count = 0;
-    const interval = setInterval(() => {
-      count += 1;
-      // results가 변경되었으면 이전 interval 무시
-      if (resultsRef.current !== results) {
-        clearInterval(interval);
-        return;
-      }
-      setVisibleCount(count);
-      if (count >= results.length) {
-        clearInterval(interval);
-      }
+    const timer = setTimeout(() => {
+      setVisibleCount((c) => c + 1);
     }, 120);
 
-    return () => clearInterval(interval);
-  }, [results]);
+    return () => clearTimeout(timer);
+  }, [visibleCount, results.length]);
 
   return (
     <Stack gap="sm">
       {results.slice(0, visibleCount).map((r, idx) => (
         <div
           key={r.serviceId}
-          style={{
-            animation: 'fadeSlideIn 0.3s ease-out',
-          }}
+          style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
         >
           <BenefitCard result={r} index={idx} />
         </div>
       ))}
     </Stack>
   );
+}
+
+export function StaggeredResults({ results }: StaggeredResultsProps) {
+  const key = useMemo(() => results.map((r) => r.serviceId).join(','), [results]);
+  return <StaggeredResultsInner key={key} results={results} />;
 }

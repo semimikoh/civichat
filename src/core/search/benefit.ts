@@ -186,48 +186,46 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
   // 컨텍스트 불일치 필터: 언급하지 않은 특수 대상 서비스 제외
   const userQuery = options.query;
   results = results.filter((r) => {
-    const name = r.serviceName;
-    const target = r.targetAudience;
-    const text = name + ' ' + target;
+    const text = r.serviceName + ' ' + r.targetAudience;
 
     // 임산부/출산/난임: 관련 키워드 없으면 제외
     if (!(/임산부|임신|산모|출산|아기|난임/.test(userQuery))) {
-      if (/임산부|임신|산모|산전|산후|난임|분만/.test(name)) return false;
+      if (/임산부|임신|산모|산전|산후|난임|분만/.test(text)) return false;
     }
 
     // 장애인: 장애 관련 키워드 없으면 제외
     if (!(/장애/.test(userQuery))) {
-      if (/장애인|장애아/.test(name)) return false;
+      if (/장애인|장애아/.test(text)) return false;
     }
 
     // 보훈: 보훈 관련 키워드 없으면 제외
     if (!(/보훈|국가유공/.test(userQuery))) {
-      if (/보훈|국가유공/.test(name)) return false;
+      if (/보훈|국가유공/.test(text)) return false;
     }
 
     // 결혼/혼인: 결혼 관련 키워드 없으면 제외
     if (!(/결혼|혼인|기혼|신혼|웨딩/.test(userQuery))) {
-      if (/결혼|혼인|신혼/.test(name)) return false;
+      if (/결혼|혼인|신혼/.test(text)) return false;
     }
 
     // 자립/보호종료: 관련 키워드 없으면 제외
     if (!(/자립|보호종료|아동복지시설|퇴소|가정위탁|위탁/.test(userQuery))) {
-      if (/자립준비|자립지원|보호종료|가정위탁|보호아동/.test(name)) return false;
+      if (/자립준비|자립지원|보호종료|가정위탁|보호아동/.test(text)) return false;
     }
 
     // 다문화: 관련 키워드 없으면 제외
     if (!(/다문화|이주|외국인/.test(userQuery))) {
-      if (/다문화|이주여성/.test(name)) return false;
+      if (/다문화|이주여성/.test(text)) return false;
     }
 
     // 농업/어업/축산: 관련 키워드 없으면 제외
     if (!(/농업|어업|축산|임업|농민|어민/.test(userQuery))) {
-      if (/농업인|어업인|축산|임산물/.test(name)) return false;
+      if (/농업인|어업인|축산|임산물/.test(text)) return false;
     }
 
     // 군인/병사: 관련 키워드 없으면 제외
     if (!(/군인|병사|전역|제대/.test(userQuery))) {
-      if (/병사|전역|군인/.test(name)) return false;
+      if (/병사|전역|군인/.test(text)) return false;
     }
 
     return true;
