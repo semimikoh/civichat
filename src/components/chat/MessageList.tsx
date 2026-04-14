@@ -1,12 +1,15 @@
 'use client';
 
-import { Stack, Paper, Text, Box, Loader } from '@mantine/core';
+import { useState } from 'react';
+import { Stack, Paper, Text, Box } from '@mantine/core';
+import { useMessageVirtualizer } from '@/lib/text-layout/use-message-height';
 import { StaggeredResults } from '@/components/chat/StaggeredResults';
 import type { SearchResult } from '@/core/search/benefit';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  summary?: string;
   results?: SearchResult[];
   loading?: boolean;
 }
@@ -15,47 +18,99 @@ interface MessageListProps {
   messages: ChatMessage[];
 }
 
-export function MessageList({ messages }: MessageListProps) {
+function AssistantMessage({ msg }: { msg: ChatMessage }) {
+  const hasResults = msg.results && msg.results.length > 0;
+
   return (
-    <Stack gap="md">
-      {messages.map((msg, i) => {
+    <>
+      {msg.summary && (
+        <Text
+          size="sm"
+          mb={hasResults ? 'sm' : 0}
+          style={{ whiteSpace: 'pre-line' }}
+          dangerouslySetInnerHTML={{
+            __html: msg.summary
+              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'),
+          }}
+        />
+      )}
+      {!msg.summary && msg.content && (
+        <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
+          {msg.content}
+        </Text>
+      )}
+      {hasResults && (
+        <StaggeredResults results={msg.results!} />
+      )}
+    </>
+  );
+}
+
+export function MessageList({ messages }: MessageListProps) {
+  const visibleMessages = messages.filter((m) => !m.loading);
+  const { virtualizer, scrollRef } = useMessageVirtualizer(visibleMessages);
+
+  return (
+    <div
+      ref={scrollRef}
+      role="log"
+      aria-live="polite"
+      aria-label="대화 내역"
+      style={{ height: '100%', overflow: 'auto' }}
+    >
+      <div
+        style={{
+          height: virtualizer.getTotalSize(),
+          width: '100%',
+          position: 'relative',
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualItem) => {
+          const msg = visibleMessages[virtualItem.index];
+          if (!msg) return null;
           const isUser = msg.role === 'user';
 
           return (
-            <Box
-              key={`msg-${msg.role}-${i}`}
+            <div
+              key={virtualItem.key}
+              data-index={virtualItem.index}
+              ref={virtualizer.measureElement}
               style={{
-                display: 'flex',
-                justifyContent: isUser ? 'flex-end' : 'flex-start',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${virtualItem.start}px)`,
               }}
             >
-              <Paper
-                p="sm"
-                radius="lg"
-                bg={isUser ? 'blue.6' : 'gray.0'}
+              <Box
                 style={{
-                  maxWidth: isUser ? '75%' : '90%',
+                  display: 'flex',
+                  justifyContent: isUser ? 'flex-end' : 'flex-start',
+                  paddingBottom: 12,
                 }}
               >
-                {msg.loading ? null : (
-                  <>
-                    <Text
-                      size="sm"
-                      c={isUser ? 'white' : undefined}
-                      mb={msg.results ? 'sm' : 0}
-                      style={{ whiteSpace: 'pre-line' }}
-                    >
+                <Paper
+                  p="sm"
+                  radius="lg"
+                  bg={isUser ? 'blue.6' : 'gray.0'}
+                  style={{
+                    maxWidth: isUser ? '75%' : '90%',
+                  }}
+                >
+                  {isUser ? (
+                    <Text size="sm" c="white" style={{ whiteSpace: 'pre-line' }}>
                       {msg.content}
                     </Text>
-                    {msg.results && msg.results.length > 0 && (
-                      <StaggeredResults results={msg.results} />
-                    )}
-                  </>
-                )}
-              </Paper>
-            </Box>
+                  ) : (
+                    <AssistantMessage msg={msg} />
+                  )}
+                </Paper>
+              </Box>
+            </div>
           );
         })}
-    </Stack>
+      </div>
+    </div>
   );
 }

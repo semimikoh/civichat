@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { Container, Stack, Title, Text, ScrollArea, Center, Loader } from '@mantine/core';
+import { useState, useCallback } from 'react';
+import { Box, Container, Stack, Title, Text, Center, Loader } from '@mantine/core';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { MessageList, type ChatMessage } from '@/components/chat/MessageList';
 import type { SearchResult } from '@/core/search/benefit';
 
-interface ApiResponse {
-  type: 'results' | 'question';
-  message: string;
+interface SSEEvent {
+  type: 'results' | 'question' | 'summary_chunk' | 'summary_done';
+  message?: string;
   results?: SearchResult[];
+  text?: string;
   error?: string;
 }
 
@@ -34,11 +35,17 @@ function EmptyState() {
 export function ChatContainer() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
-  const viewportRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    viewportRef.current?.scrollTo({ top: viewportRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages]);
+  const updateLastAssistant = useCallback((updater: (msg: ChatMessage) => ChatMessage) => {
+    setMessages((prev) => {
+      const updated = [...prev];
+      const idx = updated.findLastIndex((m) => m.role === 'assistant');
+      if (idx !== -1) {
+        updated[idx] = updater(updated[idx]);
+      }
+      return updated;
+    });
+  }, []);
 
   const handleSubmit = async (query: string) => {
     const userMsg: ChatMessage = { role: 'user', content: query };
@@ -48,10 +55,14 @@ export function ChatContainer() {
     setLoading(true);
 
     try {
-      // 대화 히스토리 구성 (결과 제외, 텍스트만)
       const history = [...messages, userMsg]
         .filter((m) => !m.loading)
-        .map((m) => ({ role: m.role, content: m.content }));
+        .map((m) => ({
+          role: m.role,
+          content: m.summary
+            ? `${m.summary}\n\n[검색 조건: ${m.content}]`
+            : m.content,
+        }));
 
       const res = await fetch('/api/search', {
         method: 'POST',
@@ -63,23 +74,64 @@ export function ChatContainer() {
         throw new Error(`서버 오류 (${res.status})`);
       }
 
-      const data: ApiResponse = await res.json();
+      const contentType = res.headers.get('content-type') ?? '';
 
-      if (data.error) {
+      // JSON 응답 (질문 모드)
+      if (contentType.includes('application/json')) {
+        const data = await res.json() as SSEEvent;
         setMessages((prev) => [
           ...prev.slice(0, -1),
-          { role: 'assistant', content: data.error ?? '오류가 발생했습니다.' },
+          { role: 'assistant', content: data.message ?? data.error ?? '' },
         ]);
-      } else if (data.type === 'question') {
-        setMessages((prev) => [
-          ...prev.slice(0, -1),
-          { role: 'assistant', content: data.message },
-        ]);
-      } else {
-        setMessages((prev) => [
-          ...prev.slice(0, -1),
-          { role: 'assistant', content: data.message, results: data.results },
-        ]);
+        return;
+      }
+
+      // SSE 스트리밍 (검색 결과 + 요약)
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error('스트림을 읽을 수 없습니다.');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let summaryText = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const json = line.slice(6);
+          if (!json) continue;
+
+          const event: SSEEvent = JSON.parse(json);
+
+          if (event.type === 'summary_chunk' && event.text) {
+            summaryText += event.text;
+            // 요약 스트리밍 시작 시 로딩 해제 + 요약 텍스트 표시
+            setLoading(false);
+            setMessages((prev) => {
+              const updated = [...prev];
+              const idx = updated.findLastIndex((m) => m.role === 'assistant');
+              if (idx !== -1) {
+                updated[idx] = { ...updated[idx], loading: false, summary: summaryText };
+              }
+              return updated;
+            });
+          }
+
+          if (event.type === 'results') {
+            // 요약 끝나고 결과 카드 추가
+            updateLastAssistant((msg) => ({
+              ...msg,
+              content: event.message ?? '',
+              results: event.results,
+            }));
+          }
+        }
       }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
@@ -93,10 +145,13 @@ export function ChatContainer() {
   };
 
   return (
-    <Container size="sm" h="100dvh" py="md" role="main" aria-label="CiviChat 복지 혜택 검색">
+    <Container size="xs" h="100dvh" py="md" role="main" aria-label="CiviChat 복지 혜택 검색" aria-busy={loading}>
+      <a href="#chat-input" className="sr-only" style={{
+        position: 'absolute', left: '-9999px', top: 'auto', width: '1px', height: '1px', overflow: 'hidden',
+      }}>검색 입력으로 건너뛰기</a>
       <Stack h="100%" gap="md">
         <header>
-          <Title order={2}>CiviChat</Title>
+          <Title order={1} size="h2">CiviChat</Title>
           <Text size="sm" c="dimmed">
             자연어로 정부 복지 혜택을 검색하세요
           </Text>
@@ -105,7 +160,7 @@ export function ChatContainer() {
         {messages.length === 0 ? (
           <EmptyState />
         ) : (
-          <ScrollArea flex={1} viewportRef={viewportRef} pos="relative">
+          <Box flex={1} pos="relative" style={{ overflow: 'hidden' }}>
             <MessageList messages={messages} />
             {loading && (
               <Center
@@ -114,12 +169,14 @@ export function ChatContainer() {
                 left={0}
                 right={0}
                 bottom={0}
+                role="status"
+                aria-label="검색 중"
                 style={{ backgroundColor: 'rgba(255,255,255,0.6)', zIndex: 10 }}
               >
                 <Loader size="lg" />
               </Center>
             )}
-          </ScrollArea>
+          </Box>
         )}
 
         <ChatInput onSubmit={handleSubmit} disabled={loading} />
