@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { Box, Container, Stack, Title, Text, Center, Loader } from '@mantine/core';
-import { ChatInput } from '@/components/chat/ChatInput';
-import { MessageList } from '@/components/chat/MessageList';
-import type { ChatMessage, SSEEvent } from '@/components/chat/types';
+import { Box, Container, Stack, Group, Title, Text, Center, Loader } from '@mantine/core';
+import { ChatInput } from '@/components/benefit/ChatInput';
+import { MessageList } from '@/components/benefit/MessageList';
+import type { ChatMessage, SSEEvent } from '@/components/benefit/types';
 import { SSE_EVENT } from '@/core/types/sse';
 
 function EmptyState() {
@@ -25,7 +25,7 @@ function EmptyState() {
   );
 }
 
-export function ChatContainer() {
+export function BenefitChatContainer() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   /** 전체 입력 비활성화 (fetch 진행 중) */
   const [isInputDisabled, setIsInputDisabled] = useState(false);
@@ -152,16 +152,16 @@ export function ChatContainer() {
   };
 
   return (
-    <Container size="xs" h="100dvh" py="md" role="main" aria-label="CiviChat 복지 혜택 검색" aria-busy={isInputDisabled}>
+    <Container size="xs" h="100%" py="md" role="main" aria-label="CiviChat 복지 혜택 검색" aria-busy={isInputDisabled}>
       <a href="#chat-input" className="sr-only" style={{
         position: 'absolute', left: '-9999px', top: 'auto', width: '1px', height: '1px', overflow: 'hidden',
       }}>검색 입력으로 건너뛰기</a>
       <Stack h="100%" gap="md">
         <header>
-          <Title order={1} size="h2">CiviChat</Title>
-          <Text size="sm" c="dimmed">
-            나에게 맞는 복지 혜택을 찾아보세요
-          </Text>
+          <Group gap="xs" align="baseline">
+            <Title order={1} size="h2">CiviChat</Title>
+            <Text size="sm" c="dimmed">나에게 맞는 복지 혜택을 찾아보세요</Text>
+          </Group>
         </header>
 
         {messages.length === 0 ? (

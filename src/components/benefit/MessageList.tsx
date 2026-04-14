@@ -5,10 +5,10 @@ import Markdown from 'react-markdown';
 import { useMessageVirtualizer } from '@/lib/text-layout/use-message-height';
 import { USER_BUBBLE_WIDTH_RATIO, ASSISTANT_BUBBLE_WIDTH_RATIO } from '@/lib/text-layout/prepared';
 import { useTypewriter } from '@/lib/use-typewriter';
-import { StaggeredResults } from '@/components/chat/StaggeredResults';
-import type { ChatMessage } from '@/components/chat/types';
+import { StaggeredResults } from '@/components/benefit/StaggeredResults';
+import type { ChatMessage } from '@/components/benefit/types';
 
-export type { ChatMessage } from '@/components/chat/types';
+export type { ChatMessage } from '@/components/benefit/types';
 
 interface MessageListProps {
   messages: ChatMessage[];

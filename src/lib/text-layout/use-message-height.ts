@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, useMemo, useEffect, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { ChatMessage } from '@/components/chat/types';
+import type { ChatMessage } from '@/components/benefit/types';
 import { estimateMessageHeight } from './prepared';
 import { createCache } from './cache';
 

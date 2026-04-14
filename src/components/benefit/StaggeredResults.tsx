@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Stack, Text } from '@mantine/core';
-import { BenefitCard } from '@/components/chat/BenefitCard';
+import { BenefitCard } from '@/components/benefit/BenefitCard';
 import type { SearchResult } from '@/core/search/benefit';
 
 interface StaggeredResultsProps {
