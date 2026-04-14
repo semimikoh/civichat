@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { getSupabaseClient } from '@/core/db/supabase';
 import { embedTexts } from '@/core/embeddings/openai';
 import {
@@ -8,6 +9,33 @@ import {
 } from '@/core/search/extract';
 export { summarizeResults } from '@/core/search/summarize';
 export type { ConversationMessage } from '@/core/search/extract';
+
+const rpcRowSchema = z.object({
+  service_id: z.string(),
+  service_name: z.string(),
+  service_purpose: z.string(),
+  support_type: z.string(),
+  target_audience: z.string(),
+  selection_criteria: z.string(),
+  support_content: z.string(),
+  application_method: z.string(),
+  application_deadline: z.string(),
+  contact_agency: z.string(),
+  contact_phone: z.string(),
+  online_application_url: z.string(),
+  detail_url: z.string(),
+  managing_agency: z.string(),
+  law: z.string(),
+  similarity: z.number(),
+});
+
+const condRowSchema = z.object({
+  service_id: z.string(),
+  age_start: z.number().nullable(),
+  age_end: z.number().nullable(),
+  gender: z.array(z.string()).nullable(),
+  occupation: z.array(z.string()).nullable(),
+});
 
 export interface SearchResult {
   serviceId: string;
@@ -97,23 +125,28 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
     throw new Error(`벡터 검색 실패: ${error.message}`);
   }
 
-  let results: SearchResult[] = (data ?? []).map((row: Record<string, unknown>) => ({
-    serviceId: row.service_id as string,
-    serviceName: row.service_name as string,
-    servicePurpose: row.service_purpose as string,
-    supportType: row.support_type as string,
-    targetAudience: row.target_audience as string,
-    selectionCriteria: row.selection_criteria as string,
-    supportContent: row.support_content as string,
-    applicationMethod: row.application_method as string,
-    applicationDeadline: row.application_deadline as string,
-    contactAgency: row.contact_agency as string,
-    contactPhone: row.contact_phone as string,
-    onlineApplicationUrl: row.online_application_url as string,
-    detailUrl: row.detail_url as string,
-    managingAgency: row.managing_agency as string,
-    law: row.law as string,
-    similarity: row.similarity as number,
+  const parsed = z.array(rpcRowSchema).safeParse(data ?? []);
+  if (!parsed.success) {
+    throw new Error(`RPC 응답 파싱 실패: ${parsed.error.message}`);
+  }
+
+  let results: SearchResult[] = parsed.data.map((row) => ({
+    serviceId: row.service_id,
+    serviceName: row.service_name,
+    servicePurpose: row.service_purpose,
+    supportType: row.support_type,
+    targetAudience: row.target_audience,
+    selectionCriteria: row.selection_criteria,
+    supportContent: row.support_content,
+    applicationMethod: row.application_method,
+    applicationDeadline: row.application_deadline,
+    contactAgency: row.contact_agency,
+    contactPhone: row.contact_phone,
+    onlineApplicationUrl: row.online_application_url,
+    detailUrl: row.detail_url,
+    managingAgency: row.managing_agency,
+    law: row.law,
+    similarity: row.similarity,
   }));
 
   // 3. JA 코드 기반 필터
@@ -121,46 +154,51 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
     const serviceIds = results.map((r) => r.serviceId);
 
     if (serviceIds.length > 0) {
-      const { data: condData } = await supabase
+      const { data: condData, error: condError } = await supabase
         .from('benefit_conditions')
         .select('service_id, age_start, age_end, gender, occupation')
         .in('service_id', serviceIds);
 
+      if (condError) {
+        console.error('benefit_conditions 조회 실패:', condError.message);
+      }
+
       if (condData) {
-        const condMap = new Map(
-          condData.map((c: Record<string, unknown>) => [c.service_id as string, c]),
-        );
+        const parsedConds = z.array(condRowSchema).safeParse(condData);
+        if (!parsedConds.success) {
+          console.error('benefit_conditions 파싱 실패:', parsedConds.error.message);
+        } else {
+          const condMap = new Map(
+            parsedConds.data.map((c) => [c.service_id, c]),
+          );
 
-        results = results.filter((r) => {
-          const cond = condMap.get(r.serviceId) as Record<string, unknown> | undefined;
-          if (!cond) return true;
+          results = results.filter((r) => {
+            const cond = condMap.get(r.serviceId);
+            if (!cond) return true;
 
-          if (conditions.age !== null) {
-            const ageStart = cond.age_start as number | null;
-            const ageEnd = cond.age_end as number | null;
-            if (ageStart !== null && ageEnd !== null) {
-              if (conditions.age < ageStart || conditions.age > ageEnd) return false;
+            if (conditions.age !== null) {
+              if (cond.age_start !== null && cond.age_end !== null) {
+                if (conditions.age < cond.age_start || conditions.age > cond.age_end) return false;
+              }
             }
-          }
 
-          if (conditions.gender) {
-            const gender = cond.gender as string[] | null;
-            if (gender && gender.length > 0 && !gender.includes(conditions.gender)) {
-              return false;
+            if (conditions.gender) {
+              if (cond.gender && cond.gender.length > 0 && !cond.gender.includes(conditions.gender)) {
+                return false;
+              }
             }
-          }
 
-          if (conditions.occupation) {
-            const occupation = cond.occupation as string[] | null;
-            if (occupation && occupation.length > 0
-              && !occupation.includes(conditions.occupation)
-              && !occupation.includes('해당사항없음')) {
-              return false;
+            if (conditions.occupation) {
+              if (cond.occupation && cond.occupation.length > 0
+                && !cond.occupation.includes(conditions.occupation)
+                && !cond.occupation.includes('해당사항없음')) {
+                return false;
+              }
             }
-          }
 
-          return true;
-        });
+            return true;
+          });
+        }
       }
     }
   }
