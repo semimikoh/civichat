@@ -19,6 +19,8 @@ export interface Benefit {
   law: string;
   administrativeRule: string;
   localRegulation: string;
+  /** 정부24 상세조회 URL */
+  detailUrl: string;
   /** 임베딩용 텍스트 (서비스명 + 지원대상 + 선정기준 + 지원내용) */
   embeddingText: string;
   updatedAt: string;

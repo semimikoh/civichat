@@ -61,15 +61,26 @@ export function BenefitCard({ result, index }: BenefitCardProps) {
           </div>
         )}
 
-        {result.onlineApplicationUrl && (
-          <Anchor
-            href={result.onlineApplicationUrl}
-            target="_blank"
-            size="xs"
-          >
-            온라인 신청
-          </Anchor>
-        )}
+        <Group gap="md">
+          {result.detailUrl && (
+            <Anchor
+              href={result.detailUrl}
+              target="_blank"
+              size="xs"
+            >
+              상세 정보
+            </Anchor>
+          )}
+          {result.onlineApplicationUrl && (
+            <Anchor
+              href={result.onlineApplicationUrl}
+              target="_blank"
+              size="xs"
+            >
+              온라인 신청
+            </Anchor>
+          )}
+        </Group>
       </Stack>
     </Card>
   );

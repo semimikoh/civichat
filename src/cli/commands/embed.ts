@@ -1,11 +1,11 @@
 import { Command } from 'commander';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { getSupabaseClient } from '@/core/db/supabase';
-import { transformDetail } from '@/core/benefit/transform';
+import { transformAllDetails } from '@/core/benefit/transform';
 import { transformCondition } from '@/core/benefit/conditions';
 import { embedTexts } from '@/core/embeddings/openai';
-import type { ServiceDetail, SupportCondition } from '@/core/types/gov24';
+import type { ServiceDetail, ServiceListItem, SupportCondition } from '@/core/types/gov24';
 
 const DATA_DIR = resolve(process.cwd(), 'data');
 
@@ -17,11 +17,15 @@ embedCommand
   .description('서비스 상세 데이터 임베딩 + benefits 테이블 적재')
   .action(async () => {
     const detailsPath = resolve(DATA_DIR, 'details.json');
+    const servicesPath = resolve(DATA_DIR, 'services.json');
     const details: ServiceDetail[] = JSON.parse(readFileSync(detailsPath, 'utf-8'));
+    const services: ServiceListItem[] | undefined = existsSync(servicesPath)
+      ? JSON.parse(readFileSync(servicesPath, 'utf-8'))
+      : undefined;
     console.log(`${details.length}건 상세 데이터 로드 완료`);
 
-    // 1. transform
-    const benefits = details.map(transformDetail);
+    // 1. transform (services.json에서 상세조회URL 매핑)
+    const benefits = transformAllDetails(details, services);
     console.log('데이터 정제 완료');
 
     // 2. 임베딩 생성
@@ -32,7 +36,7 @@ embedCommand
 
     // 3. DB 적재
     const supabase = getSupabaseClient();
-    const CHUNK = 500;
+    const CHUNK = 100;
     let inserted = 0;
 
     for (let i = 0; i < benefits.length; i += CHUNK) {
@@ -53,6 +57,7 @@ embedCommand
         contact_agency: b.contactAgency,
         contact_phone: b.contactPhone,
         online_application_url: b.onlineApplicationUrl,
+        detail_url: b.detailUrl,
         managing_agency: b.managingAgency,
         managing_agency_type: b.managingAgencyType,
         service_category: b.serviceCategory,
@@ -89,7 +94,7 @@ embedCommand
 
     const conditions = rawConditions.map(transformCondition);
     const supabase = getSupabaseClient();
-    const CHUNK = 500;
+    const CHUNK = 100;
     let inserted = 0;
 
     for (let i = 0; i < conditions.length; i += CHUNK) {

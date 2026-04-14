@@ -18,6 +18,7 @@ returns table (
   contact_agency text,
   contact_phone text,
   online_application_url text,
+  detail_url text,
   managing_agency text,
   law text,
   similarity float
@@ -40,6 +41,7 @@ begin
     b.contact_agency,
     b.contact_phone,
     b.online_application_url,
+    b.detail_url,
     b.managing_agency,
     b.law,
     1 - (b.embedding <=> query_embedding) as similarity

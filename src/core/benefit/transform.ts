@@ -1,5 +1,5 @@
 import type { Benefit } from '@/core/types/benefit';
-import type { ServiceDetail } from '@/core/types/gov24';
+import type { ServiceDetail, ServiceListItem } from '@/core/types/gov24';
 
 /** 줄바꿈, 캐리지 리턴, 다중 공백 정리 */
 function cleanText(text: string | null | undefined): string {
@@ -26,7 +26,7 @@ function buildEmbeddingText(detail: ServiceDetail): string {
 }
 
 /** API 상세 데이터 -> 정제된 Benefit 변환 */
-export function transformDetail(detail: ServiceDetail): Benefit {
+export function transformDetail(detail: ServiceDetail, detailUrl?: string): Benefit {
   return {
     serviceId: detail.서비스ID,
     serviceName: cleanText(detail.서비스명),
@@ -47,12 +47,22 @@ export function transformDetail(detail: ServiceDetail): Benefit {
     law: cleanText(detail.법령),
     administrativeRule: cleanText(detail.행정규칙),
     localRegulation: cleanText(detail.자치법규),
+    detailUrl: detailUrl ?? '',
     embeddingText: buildEmbeddingText(detail),
     updatedAt: detail.수정일시,
   };
 }
 
-/** 전체 상세 데이터 일괄 변환 */
-export function transformAllDetails(details: ServiceDetail[]): Benefit[] {
-  return details.map(transformDetail);
+/** 전체 상세 데이터 일괄 변환 (services.json에서 URL 매핑) */
+export function transformAllDetails(
+  details: ServiceDetail[],
+  services?: ServiceListItem[],
+): Benefit[] {
+  const urlMap = new Map<string, string>();
+  if (services) {
+    for (const s of services) {
+      urlMap.set(s.서비스ID, s.상세조회URL ?? '');
+    }
+  }
+  return details.map((d) => transformDetail(d, urlMap.get(d.서비스ID)));
 }

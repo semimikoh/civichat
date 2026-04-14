@@ -14,6 +14,7 @@ export interface SearchResult {
   contactAgency: string;
   contactPhone: string;
   onlineApplicationUrl: string;
+  detailUrl: string;
   managingAgency: string;
   law: string;
   similarity: number;
@@ -65,6 +66,7 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResu
     contactAgency: row.contact_agency as string,
     contactPhone: row.contact_phone as string,
     onlineApplicationUrl: row.online_application_url as string,
+    detailUrl: row.detail_url as string,
     managingAgency: row.managing_agency as string,
     law: row.law as string,
     similarity: row.similarity as number,
