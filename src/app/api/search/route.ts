@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { searchBenefits, type SearchOptions } from '@/core/search/benefit';
+import { searchBenefits, type ConversationMessage } from '@/core/search/benefit';
 
 export async function POST(request: Request) {
   const body: unknown = await request.json();
-  const { query, count, age, gender } = body as Record<string, unknown>;
+  const { query, history, count } = body as Record<string, unknown>;
 
   if (!query || typeof query !== 'string') {
     return NextResponse.json(
@@ -12,14 +12,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const options: SearchOptions = {
+  const response = await searchBenefits({
     query,
+    history: Array.isArray(history) ? history as ConversationMessage[] : [],
     matchCount: typeof count === 'number' ? count : 10,
-    ageFilter: typeof age === 'number' ? age : undefined,
-    genderFilter: typeof gender === 'string' ? gender : undefined,
-  };
+  });
 
-  const results = await searchBenefits(options);
-
-  return NextResponse.json({ results });
+  return NextResponse.json(response);
 }

@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Container, Stack, Title, Text, ScrollArea, Center } from '@mantine/core';
+import { Container, Stack, Title, Text, ScrollArea, Center, Overlay, Loader } from '@mantine/core';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { MessageList, type ChatMessage } from '@/components/chat/MessageList';
 import type { SearchResult } from '@/core/search/benefit';
 
-interface SearchResponse {
-  results: SearchResult[];
+interface ApiResponse {
+  type: 'results' | 'question';
+  message: string;
+  results?: SearchResult[];
   error?: string;
 }
 
@@ -40,47 +42,50 @@ export function ChatContainer() {
 
   const handleSubmit = async (query: string) => {
     const userMsg: ChatMessage = { role: 'user', content: query };
-    const loadingMsg: ChatMessage = { role: 'assistant', content: '검색 중...', loading: true };
+    const loadingMsg: ChatMessage = { role: 'assistant', content: '', loading: true };
 
     setMessages((prev) => [...prev, userMsg, loadingMsg]);
     setLoading(true);
 
     try {
+      // 대화 히스토리 구성 (결과 제외, 텍스트만)
+      const history = [...messages, userMsg]
+        .filter((m) => !m.loading)
+        .map((m) => ({ role: m.role, content: m.content }));
+
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, history }),
       });
 
       if (!res.ok) {
         throw new Error(`서버 오류 (${res.status})`);
       }
 
-      const data: SearchResponse = await res.json();
+      const data: ApiResponse = await res.json();
 
       if (data.error) {
         setMessages((prev) => [
           ...prev.slice(0, -1),
-          { role: 'assistant', content: data.error ?? '검색 중 오류가 발생했습니다.' },
+          { role: 'assistant', content: data.error ?? '오류가 발생했습니다.' },
         ]);
-      } else {
-        const count = data.results.length;
+      } else if (data.type === 'question') {
         setMessages((prev) => [
           ...prev.slice(0, -1),
-          {
-            role: 'assistant',
-            content: count > 0
-              ? `${count}건의 혜택을 찾았습니다.`
-              : '조건에 맞는 혜택을 찾지 못했습니다. 다른 키워드로 검색해보세요.',
-            results: data.results,
-          },
+          { role: 'assistant', content: data.message },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev.slice(0, -1),
+          { role: 'assistant', content: data.message, results: data.results },
         ]);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : '알 수 없는 오류';
+      const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
       setMessages((prev) => [
         ...prev.slice(0, -1),
-        { role: 'assistant', content: `검색 중 오류가 발생했습니다: ${message}` },
+        { role: 'assistant', content: `오류가 발생했습니다: ${errMsg}` },
       ]);
     } finally {
       setLoading(false);
@@ -88,7 +93,12 @@ export function ChatContainer() {
   };
 
   return (
-    <Container size="sm" h="100dvh" py="md" role="main" aria-label="CiviChat 복지 혜택 검색">
+    <Container size="sm" h="100dvh" py="md" role="main" aria-label="CiviChat 복지 혜택 검색" pos="relative">
+      {loading && (
+        <Overlay fixed center backgroundOpacity={0.3} zIndex={100}>
+          <Loader size="lg" />
+        </Overlay>
+      )}
       <Stack h="100%" gap="md">
         <header>
           <Title order={2}>CiviChat</Title>
