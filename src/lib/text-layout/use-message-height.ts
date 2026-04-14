@@ -2,11 +2,13 @@
 
 import { useRef, useCallback, useMemo, useEffect, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { ChatMessage } from '@/components/chat/MessageList';
+import type { ChatMessage } from '@/components/chat/types';
 import { estimateMessageHeight } from './prepared';
 import { createCache } from './cache';
 
 const MESSAGE_GAP = 12;
+const HEIGHT_CACHE_MAX = 500;
+const HEIGHT_CACHE_TRIM_TO = 250;
 
 export function useMessageVirtualizer(messages: ChatMessage[]) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -29,6 +31,14 @@ export function useMessageVirtualizer(messages: ChatMessage[]) {
   const measureCache = useMemo(() => createCache(), []);
   const heightCache = useRef(new Map<string, number>());
 
+  // 캐시 트림: 메시지 수 변경 시 초과분 정리
+  useEffect(() => {
+    if (heightCache.current.size > HEIGHT_CACHE_MAX) {
+      const entries = [...heightCache.current.entries()];
+      heightCache.current = new Map(entries.slice(-HEIGHT_CACHE_TRIM_TO));
+    }
+  }, [messages.length]);
+
   const estimateSize = useCallback(
     (index: number) => {
       const msg = messages[index];
@@ -40,11 +50,6 @@ export function useMessageVirtualizer(messages: ChatMessage[]) {
 
       const height = estimateMessageHeight(msg, containerWidth, measureCache) + MESSAGE_GAP;
       heightCache.current.set(cacheKey, height);
-
-      if (heightCache.current.size > 500) {
-        const entries = [...heightCache.current.entries()];
-        heightCache.current = new Map(entries.slice(-250));
-      }
 
       return height;
     },
@@ -68,5 +73,5 @@ export function useMessageVirtualizer(messages: ChatMessage[]) {
     }
   }, [messages.length, virtualizer]);
 
-  return { virtualizer, scrollRef, containerWidth };
+  return { virtualizer, scrollRef };
 }

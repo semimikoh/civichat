@@ -1,15 +1,5 @@
-import OpenAI from 'openai';
 import type { SearchResult } from '@/core/search/benefit';
-
-let client: OpenAI | null = null;
-
-function getClient(): OpenAI {
-  if (client) return client;
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error('OPENAI_API_KEY 환경변수가 설정되지 않았습니다.');
-  client = new OpenAI({ apiKey });
-  return client;
-}
+import { getOpenAIClient } from '@/core/embeddings/openai';
 
 const SYSTEM_PROMPT = `너는 정부 복지 혜택 검색 결과를 요약해주는 도우미야.
 검색 결과를 보고 사용자에게 친근하게 요약해줘.
@@ -45,7 +35,7 @@ export async function summarizeResults(
     return '조건에 맞는 혜택을 찾지 못했습니다. 다른 키워드로 검색해보세요.';
   }
 
-  const openai = getClient();
+  const openai = getOpenAIClient();
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     messages: [
@@ -65,7 +55,7 @@ export async function summarizeResultsStream(
   results: SearchResult[],
   conditionText: string,
 ) {
-  const openai = getClient();
+  const openai = getOpenAIClient();
   return openai.chat.completions.create({
     model: 'gpt-4o-mini',
     messages: [

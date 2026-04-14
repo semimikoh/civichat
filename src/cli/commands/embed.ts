@@ -6,8 +6,9 @@ import { transformAllDetails } from '@/core/benefit/transform';
 import { transformCondition } from '@/core/benefit/conditions';
 import { embedTexts } from '@/core/embeddings/openai';
 import type { ServiceDetail, ServiceListItem, SupportCondition } from '@/core/types/gov24';
+import { DATA_DIR } from '@/cli/commands/shared';
 
-const DATA_DIR = resolve(process.cwd(), 'data');
+const DB_CHUNK_SIZE = 100;
 
 export const embedCommand = new Command('embed')
   .description('데이터 임베딩 + DB 적재');
@@ -40,12 +41,11 @@ embedCommand
 
     // 3. DB 적재
     const supabase = getSupabaseClient();
-    const CHUNK = 100;
     let inserted = 0;
 
-    for (let i = 0; i < benefits.length; i += CHUNK) {
-      const chunk = benefits.slice(i, i + CHUNK);
-      const chunkEmbeddings = embeddings.slice(i, i + CHUNK);
+    for (let i = 0; i < benefits.length; i += DB_CHUNK_SIZE) {
+      const chunk = benefits.slice(i, i + DB_CHUNK_SIZE);
+      const chunkEmbeddings = embeddings.slice(i, i + DB_CHUNK_SIZE);
 
       const rows = chunk.map((b, idx) => ({
         service_id: b.serviceId,
@@ -102,11 +102,10 @@ embedCommand
 
     const conditions = rawConditions.map(transformCondition);
     const supabase = getSupabaseClient();
-    const CHUNK = 100;
     let inserted = 0;
 
-    for (let i = 0; i < conditions.length; i += CHUNK) {
-      const chunk = conditions.slice(i, i + CHUNK);
+    for (let i = 0; i < conditions.length; i += DB_CHUNK_SIZE) {
+      const chunk = conditions.slice(i, i + DB_CHUNK_SIZE);
 
       const rows = chunk.map((c) => ({
         service_id: c.serviceId,

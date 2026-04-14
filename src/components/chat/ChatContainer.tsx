@@ -3,16 +3,9 @@
 import { useState, useCallback, useRef } from 'react';
 import { Box, Container, Stack, Title, Text, Center, Loader } from '@mantine/core';
 import { ChatInput } from '@/components/chat/ChatInput';
-import { MessageList, type ChatMessage } from '@/components/chat/MessageList';
-import type { SearchResult } from '@/core/search/benefit';
-
-interface SSEEvent {
-  type: 'results' | 'question' | 'summary_chunk' | 'summary_done';
-  message?: string;
-  results?: SearchResult[];
-  text?: string;
-  error?: string;
-}
+import { MessageList } from '@/components/chat/MessageList';
+import type { ChatMessage, SSEEvent } from '@/components/chat/types';
+import { SSE_EVENT } from '@/core/types/sse';
 
 function EmptyState() {
   return (
@@ -34,7 +27,8 @@ function EmptyState() {
 
 export function ChatContainer() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(false);
+  /** 전체 입력 비활성화 (fetch 진행 중) */
+  const [isInputDisabled, setIsInputDisabled] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const updateLastAssistant = useCallback((updater: (msg: ChatMessage) => ChatMessage) => {
@@ -57,7 +51,7 @@ export function ChatContainer() {
     const loadingMsg: ChatMessage = { role: 'assistant', content: '', loading: true };
 
     setMessages((prev) => [...prev, userMsg, loadingMsg]);
-    setLoading(true);
+    setIsInputDisabled(true);
 
     try {
       const history = [...messages, userMsg]
@@ -121,10 +115,10 @@ export function ChatContainer() {
             continue;
           }
 
-          if (event.type === 'summary_chunk' && event.text) {
+          if (event.type === SSE_EVENT.SUMMARY_CHUNK && event.text) {
             summaryText += event.text;
             // 요약 스트리밍 시작 시 로딩 해제 + 요약 텍스트 표시
-            setLoading(false);
+            setIsInputDisabled(false);
             setMessages((prev) => {
               const updated = [...prev];
               const idx = updated.findLastIndex((m) => m.role === 'assistant');
@@ -135,7 +129,7 @@ export function ChatContainer() {
             });
           }
 
-          if (event.type === 'results') {
+          if (event.type === SSE_EVENT.RESULTS) {
             // 요약 끝나고 결과 카드 추가
             updateLastAssistant((msg) => ({
               ...msg,
@@ -153,12 +147,12 @@ export function ChatContainer() {
         { role: 'assistant', content: `오류가 발생했습니다: ${errMsg}` },
       ]);
     } finally {
-      setLoading(false);
+      setIsInputDisabled(false);
     }
   };
 
   return (
-    <Container size="xs" h="100dvh" py="md" role="main" aria-label="CiviChat 복지 혜택 검색" aria-busy={loading}>
+    <Container size="xs" h="100dvh" py="md" role="main" aria-label="CiviChat 복지 혜택 검색" aria-busy={isInputDisabled}>
       <a href="#chat-input" className="sr-only" style={{
         position: 'absolute', left: '-9999px', top: 'auto', width: '1px', height: '1px', overflow: 'hidden',
       }}>검색 입력으로 건너뛰기</a>
@@ -166,7 +160,7 @@ export function ChatContainer() {
         <header>
           <Title order={1} size="h2">CiviChat</Title>
           <Text size="sm" c="dimmed">
-            자연어로 정부 복지 혜택을 검색하세요
+            나에게 맞는 복지 혜택을 찾아보세요
           </Text>
         </header>
 
@@ -175,7 +169,7 @@ export function ChatContainer() {
         ) : (
           <Box flex={1} pos="relative" style={{ overflow: 'hidden' }}>
             <MessageList messages={messages} />
-            {loading && (
+            {isInputDisabled && (
               <Center
                 pos="absolute"
                 top={0}
@@ -192,7 +186,7 @@ export function ChatContainer() {
           </Box>
         )}
 
-        <ChatInput onSubmit={handleSubmit} disabled={loading} />
+        <ChatInput onSubmit={handleSubmit} disabled={isInputDisabled} />
       </Stack>
     </Container>
   );

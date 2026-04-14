@@ -3,16 +3,11 @@
 import { Paper, Text, Box } from '@mantine/core';
 import Markdown from 'react-markdown';
 import { useMessageVirtualizer } from '@/lib/text-layout/use-message-height';
+import { USER_BUBBLE_WIDTH_RATIO, ASSISTANT_BUBBLE_WIDTH_RATIO } from '@/lib/text-layout/prepared';
 import { StaggeredResults } from '@/components/chat/StaggeredResults';
-import type { SearchResult } from '@/core/search/benefit';
+import type { ChatMessage } from '@/components/chat/types';
 
-export interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  summary?: string;
-  results?: SearchResult[];
-  loading?: boolean;
-}
+export type { ChatMessage } from '@/components/chat/types';
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -94,7 +89,9 @@ export function MessageList({ messages }: MessageListProps) {
                   radius="lg"
                   bg={isUser ? 'blue.6' : 'gray.0'}
                   style={{
-                    maxWidth: isUser ? '75%' : '90%',
+                    maxWidth: isUser
+                      ? `${USER_BUBBLE_WIDTH_RATIO * 100}%`
+                      : `${ASSISTANT_BUBBLE_WIDTH_RATIO * 100}%`,
                   }}
                 >
                   {isUser ? (

@@ -104,12 +104,18 @@ export async function fetchAllServiceList(
   return all;
 }
 
+export interface BatchFetchResult<T> {
+  results: T[];
+  failedIds: string[];
+}
+
 /** 전체 서비스 상세 수집 */
 export async function fetchAllServiceDetails(
   serviceIds: string[],
   delayMs = 100,
-): Promise<ServiceDetail[]> {
-  const all: ServiceDetail[] = [];
+): Promise<BatchFetchResult<ServiceDetail>> {
+  const results: ServiceDetail[] = [];
+  const failedIds: string[] = [];
   const total = serviceIds.length;
 
   for (let i = 0; i < total; i++) {
@@ -117,10 +123,11 @@ export async function fetchAllServiceDetails(
     try {
       const res = await fetchServiceDetail(id);
       if (res.data.length > 0) {
-        all.push(res.data[0]);
+        results.push(res.data[0]);
       }
     } catch (err) {
       console.error(`상세 조회 실패 (${id}):`, err);
+      failedIds.push(id);
     }
 
     if ((i + 1) % 100 === 0) {
@@ -129,15 +136,20 @@ export async function fetchAllServiceDetails(
     await delay(delayMs);
   }
 
-  return all;
+  if (failedIds.length > 0) {
+    console.warn(`상세 조회 실패 ${failedIds.length}건: ${failedIds.slice(0, 5).join(', ')}${failedIds.length > 5 ? ' ...' : ''}`);
+  }
+
+  return { results, failedIds };
 }
 
 /** 전체 지원조건 수집 */
 export async function fetchAllSupportConditions(
   serviceIds: string[],
   delayMs = 100,
-): Promise<SupportCondition[]> {
-  const all: SupportCondition[] = [];
+): Promise<BatchFetchResult<SupportCondition>> {
+  const results: SupportCondition[] = [];
+  const failedIds: string[] = [];
   const total = serviceIds.length;
 
   for (let i = 0; i < total; i++) {
@@ -145,10 +157,11 @@ export async function fetchAllSupportConditions(
     try {
       const res = await fetchSupportConditions(id);
       if (res.data.length > 0) {
-        all.push(res.data[0]);
+        results.push(res.data[0]);
       }
     } catch (err) {
       console.error(`지원조건 조회 실패 (${id}):`, err);
+      failedIds.push(id);
     }
 
     if ((i + 1) % 100 === 0) {
@@ -157,5 +170,9 @@ export async function fetchAllSupportConditions(
     await delay(delayMs);
   }
 
-  return all;
+  if (failedIds.length > 0) {
+    console.warn(`지원조건 조회 실패 ${failedIds.length}건: ${failedIds.slice(0, 5).join(', ')}${failedIds.length > 5 ? ' ...' : ''}`);
+  }
+
+  return { results, failedIds };
 }

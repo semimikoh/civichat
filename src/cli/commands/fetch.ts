@@ -6,8 +6,7 @@ import {
   fetchAllServiceDetails,
   fetchAllSupportConditions,
 } from '@/core/gov/api';
-
-const DATA_DIR = resolve(process.cwd(), 'data');
+import { DATA_DIR, loadServiceIds } from '@/cli/commands/shared';
 
 function saveJson(filename: string, data: unknown): void {
   mkdirSync(DATA_DIR, { recursive: true });
@@ -33,36 +32,20 @@ fetchCommand
   .command('details')
   .description('서비스 상세 전체 수집 (services.json 필요)')
   .action(async () => {
-    const { readFileSync, existsSync } = await import('node:fs');
-    const servicesPath = resolve(DATA_DIR, 'services.json');
-    if (!existsSync(servicesPath)) {
-      console.error('services.json이 없습니다. 먼저 fetch list를 실행하세요.');
-      process.exit(1);
-    }
-    const services = JSON.parse(readFileSync(servicesPath, 'utf-8')) as Array<{ 서비스ID: string }>;
-    const serviceIds = services.map((s) => s.서비스ID);
-
+    const serviceIds = loadServiceIds();
     console.log(`서비스 상세 수집 시작 (${serviceIds.length}건)...`);
-    const details = await fetchAllServiceDetails(serviceIds);
-    saveJson('details.json', details);
-    console.log(`총 ${details.length}건 수집 완료`);
+    const { results, failedIds } = await fetchAllServiceDetails(serviceIds);
+    saveJson('details.json', results);
+    console.log(`총 ${results.length}건 수집 완료${failedIds.length > 0 ? ` (실패 ${failedIds.length}건)` : ''}`);
   });
 
 fetchCommand
   .command('conditions')
   .description('지원조건 전체 수집 (services.json 필요)')
   .action(async () => {
-    const { readFileSync, existsSync } = await import('node:fs');
-    const servicesPath = resolve(DATA_DIR, 'services.json');
-    if (!existsSync(servicesPath)) {
-      console.error('services.json이 없습니다. 먼저 fetch list를 실행하세요.');
-      process.exit(1);
-    }
-    const services = JSON.parse(readFileSync(servicesPath, 'utf-8')) as Array<{ 서비스ID: string }>;
-    const serviceIds = services.map((s) => s.서비스ID);
-
+    const serviceIds = loadServiceIds();
     console.log(`지원조건 수집 시작 (${serviceIds.length}건)...`);
-    const conditions = await fetchAllSupportConditions(serviceIds);
-    saveJson('conditions.json', conditions);
-    console.log(`총 ${conditions.length}건 수집 완료`);
+    const { results, failedIds } = await fetchAllSupportConditions(serviceIds);
+    saveJson('conditions.json', results);
+    console.log(`총 ${results.length}건 수집 완료${failedIds.length > 0 ? ` (실패 ${failedIds.length}건)` : ''}`);
   });

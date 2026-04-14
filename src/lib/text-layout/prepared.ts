@@ -180,8 +180,14 @@ export function prepareMarkdownLayout(
 const PAPER_PADDING_Y = 24;
 const PAPER_PADDING_X = 24;
 const DEFAULT_LINE_HEIGHT = 1.55;
-const BENEFIT_CARD_HEIGHT = 200;
-const CARD_GAP = 8;
+
+/** BenefitCard 추정 높이 — BenefitCard.tsx의 실제 렌더와 일치시킬 것 */
+export const BENEFIT_CARD_HEIGHT = 200;
+export const CARD_GAP = 8;
+
+/** 말풍선 최대 너비 비율 — MessageList.tsx의 maxWidth와 일치시킬 것 */
+export const USER_BUBBLE_WIDTH_RATIO = 0.75;
+export const ASSISTANT_BUBBLE_WIDTH_RATIO = 0.9;
 
 export function estimateMessageHeight(
   message: MessageLike,
@@ -189,7 +195,9 @@ export function estimateMessageHeight(
   cache: MeasureCache = defaultCache,
 ): number {
   const isUser = message.role === 'user';
-  const msgWidth = isUser ? containerWidth * 0.75 : containerWidth * 0.9;
+  const msgWidth = isUser
+    ? containerWidth * USER_BUBBLE_WIDTH_RATIO
+    : containerWidth * ASSISTANT_BUBBLE_WIDTH_RATIO;
 
   const params: LayoutParams = {
     containerWidth: msgWidth,
@@ -201,14 +209,14 @@ export function estimateMessageHeight(
 
   let height = 0;
 
-  // 요약 텍스트 (마크다운)
-  if (message.summary) {
-    height += prepareMarkdownLayout(message.summary, params, cache).height;
-  } else if (message.content) {
-    if (isUser) {
+  if (isUser) {
+    if (message.content) {
       height += prepareTextLayout(message.content, params, cache).height;
-    } else {
-      height += prepareMarkdownLayout(message.content, params, cache).height;
+    }
+  } else {
+    const text = message.summary ?? message.content;
+    if (text) {
+      height += prepareMarkdownLayout(text, params, cache).height;
     }
   }
 

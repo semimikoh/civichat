@@ -71,7 +71,102 @@ export interface SearchOptions {
   matchThreshold?: number;
 }
 
-/** 대화형 검색: LLM 판단 → 질문 또는 검색 */
+// --- 컨텍스트 불일치 필터: 사용자가 언급하지 않은 특수 대상 서비스 제외 ---
+
+const TOPIC_FILTERS: { queryPattern: RegExp; textPattern: RegExp }[] = [
+  { queryPattern: /임산부|임신|산모|출산|아기|난임/, textPattern: /임산부|임신|산모|산전|산후|난임|분만/ },
+  { queryPattern: /장애/, textPattern: /장애인|장애아/ },
+  { queryPattern: /보훈|국가유공/, textPattern: /보훈|국가유공/ },
+  { queryPattern: /결혼|혼인|기혼|신혼|웨딩/, textPattern: /결혼|혼인|신혼/ },
+  { queryPattern: /자립|보호종료|아동복지시설|퇴소|가정위탁|위탁/, textPattern: /자립준비|자립지원|보호종료|가정위탁|보호아동/ },
+  { queryPattern: /다문화|이주|외국인/, textPattern: /다문화|이주여성/ },
+  { queryPattern: /농업|어업|축산|임업|농민|어민/, textPattern: /농업인|어업인|축산|임산물/ },
+  { queryPattern: /군인|병사|전역|제대/, textPattern: /병사|전역|군인/ },
+];
+
+function applyContextFilter(results: SearchResult[], userQuery: string): SearchResult[] {
+  return results.filter((r) => {
+    const text = r.serviceName + ' ' + r.targetAudience;
+    return TOPIC_FILTERS.every(({ queryPattern, textPattern }) =>
+      queryPattern.test(userQuery) || !textPattern.test(text),
+    );
+  });
+}
+
+function applyAgeTextFilter(results: SearchResult[], age: number): SearchResult[] {
+  return results.filter((r) => {
+    const text = r.serviceName + ' ' + r.targetAudience;
+    if (age < 40 && /중장년|노인|만\s*6[0-9]세\s*이상|만\s*65세/.test(text)) return false;
+    if (age >= 20 && /어린이|아동/.test(text)) return false;
+    if (age >= 20 && /청소년/.test(text) && !/청년/.test(text)) return false;
+    const minAgeMatch = text.match(/만\s*(\d{2,3})\s*세\s*이상/);
+    if (minAgeMatch) {
+      const minAge = parseInt(minAgeMatch[1], 10);
+      if (age < minAge) return false;
+    }
+    return true;
+  });
+}
+
+async function applyConditionFilter(
+  results: SearchResult[],
+  conditions: ExtractedConditions,
+  supabase: ReturnType<typeof getSupabaseClient>,
+): Promise<SearchResult[]> {
+  if (conditions.age === null && !conditions.gender && !conditions.occupation) {
+    return results;
+  }
+
+  const serviceIds = results.map((r) => r.serviceId);
+  if (serviceIds.length === 0) return results;
+
+  const { data: condData, error: condError } = await supabase
+    .from('benefit_conditions')
+    .select('service_id, age_start, age_end, gender, occupation')
+    .in('service_id', serviceIds);
+
+  if (condError) {
+    console.error('benefit_conditions 조회 실패:', condError.message);
+    return results;
+  }
+
+  const parsedConds = z.array(condRowSchema).safeParse(condData);
+  if (!parsedConds.success) {
+    console.error('benefit_conditions 파싱 실패:', parsedConds.error.message);
+    return results;
+  }
+
+  const condMap = new Map(parsedConds.data.map((c) => [c.service_id, c]));
+
+  return results.filter((r) => {
+    const cond = condMap.get(r.serviceId);
+    if (!cond) return true;
+
+    if (conditions.age !== null) {
+      if (cond.age_start !== null && cond.age_end !== null) {
+        if (conditions.age < cond.age_start || conditions.age > cond.age_end) return false;
+      }
+    }
+
+    if (conditions.gender) {
+      if (cond.gender && cond.gender.length > 0 && !cond.gender.includes(conditions.gender)) {
+        return false;
+      }
+    }
+
+    if (conditions.occupation) {
+      if (cond.occupation && cond.occupation.length > 0
+        && !cond.occupation.includes(conditions.occupation)
+        && !cond.occupation.includes('해당사항없음')) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+
+/** 대화형 검색: 조건 추출 -> 질문 또는 검색 */
 export async function searchBenefits(options: SearchOptions): Promise<SearchResponse> {
   const { query, history = [], matchCount = 10, matchThreshold = 0.3 } = options;
 
@@ -86,9 +181,8 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
     };
   }
 
-  // 2. 검색 실행
+  // 2. 벡터 검색 실행
   const conditions = analysis.conditions;
-  // 지역이 있으면 searchQuery에서 지역 제거 (벡터 검색은 주제만)
   const searchText = conditions.region
     ? conditions.keywords.join(' ') || conditions.searchQuery
     : conditions.searchQuery;
@@ -100,7 +194,6 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
   let error: { message: string } | null;
 
   if (conditions.region) {
-    // 지역 필터 + 벡터 검색
     const res = await supabase.rpc('match_benefits_by_region', {
       query_embedding: JSON.stringify(queryEmbedding),
       region_filter: conditions.region,
@@ -111,7 +204,6 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
     data = res.data;
     error = res.error;
   } else {
-    // 벡터 검색만
     const res = await supabase.rpc('match_benefits', {
       query_embedding: JSON.stringify(queryEmbedding),
       match_threshold: matchThreshold,
@@ -150,126 +242,15 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
   }));
 
   // 3. JA 코드 기반 필터
-  if (conditions.age !== null || conditions.gender || conditions.occupation) {
-    const serviceIds = results.map((r) => r.serviceId);
-
-    if (serviceIds.length > 0) {
-      const { data: condData, error: condError } = await supabase
-        .from('benefit_conditions')
-        .select('service_id, age_start, age_end, gender, occupation')
-        .in('service_id', serviceIds);
-
-      if (condError) {
-        console.error('benefit_conditions 조회 실패:', condError.message);
-      }
-
-      if (condData) {
-        const parsedConds = z.array(condRowSchema).safeParse(condData);
-        if (!parsedConds.success) {
-          console.error('benefit_conditions 파싱 실패:', parsedConds.error.message);
-        } else {
-          const condMap = new Map(
-            parsedConds.data.map((c) => [c.service_id, c]),
-          );
-
-          results = results.filter((r) => {
-            const cond = condMap.get(r.serviceId);
-            if (!cond) return true;
-
-            if (conditions.age !== null) {
-              if (cond.age_start !== null && cond.age_end !== null) {
-                if (conditions.age < cond.age_start || conditions.age > cond.age_end) return false;
-              }
-            }
-
-            if (conditions.gender) {
-              if (cond.gender && cond.gender.length > 0 && !cond.gender.includes(conditions.gender)) {
-                return false;
-              }
-            }
-
-            if (conditions.occupation) {
-              if (cond.occupation && cond.occupation.length > 0
-                && !cond.occupation.includes(conditions.occupation)
-                && !cond.occupation.includes('해당사항없음')) {
-                return false;
-              }
-            }
-
-            return true;
-          });
-        }
-      }
-    }
-  }
+  results = await applyConditionFilter(results, conditions, supabase);
 
   // 4. 텍스트 기반 연령/대상 불일치 필터
   if (conditions.age !== null) {
-    const age = conditions.age;
-    results = results.filter((r) => {
-      const text = r.serviceName + ' ' + r.targetAudience;
-      if (age < 40 && /중장년|노인|만\s*6[0-9]세\s*이상|만\s*65세/.test(text)) return false;
-      if (age >= 20 && /어린이|아동/.test(text)) return false;
-      if (age >= 20 && /청소년/.test(text) && !/청년/.test(text)) return false;
-      // "만65세 이상" 같은 패턴에서 최소 나이 추출
-      const minAgeMatch = text.match(/만\s*(\d{2,3})\s*세\s*이상/);
-      if (minAgeMatch) {
-        const minAge = parseInt(minAgeMatch[1], 10);
-        if (age < minAge) return false;
-      }
-      return true;
-    });
+    results = applyAgeTextFilter(results, conditions.age);
   }
 
-  // 컨텍스트 불일치 필터: 언급하지 않은 특수 대상 서비스 제외
-  const userQuery = options.query;
-  results = results.filter((r) => {
-    const text = r.serviceName + ' ' + r.targetAudience;
-
-    // 임산부/출산/난임: 관련 키워드 없으면 제외
-    if (!(/임산부|임신|산모|출산|아기|난임/.test(userQuery))) {
-      if (/임산부|임신|산모|산전|산후|난임|분만/.test(text)) return false;
-    }
-
-    // 장애인: 장애 관련 키워드 없으면 제외
-    if (!(/장애/.test(userQuery))) {
-      if (/장애인|장애아/.test(text)) return false;
-    }
-
-    // 보훈: 보훈 관련 키워드 없으면 제외
-    if (!(/보훈|국가유공/.test(userQuery))) {
-      if (/보훈|국가유공/.test(text)) return false;
-    }
-
-    // 결혼/혼인: 결혼 관련 키워드 없으면 제외
-    if (!(/결혼|혼인|기혼|신혼|웨딩/.test(userQuery))) {
-      if (/결혼|혼인|신혼/.test(text)) return false;
-    }
-
-    // 자립/보호종료: 관련 키워드 없으면 제외
-    if (!(/자립|보호종료|아동복지시설|퇴소|가정위탁|위탁/.test(userQuery))) {
-      if (/자립준비|자립지원|보호종료|가정위탁|보호아동/.test(text)) return false;
-    }
-
-    // 다문화: 관련 키워드 없으면 제외
-    if (!(/다문화|이주|외국인/.test(userQuery))) {
-      if (/다문화|이주여성/.test(text)) return false;
-    }
-
-    // 농업/어업/축산: 관련 키워드 없으면 제외
-    if (!(/농업|어업|축산|임업|농민|어민/.test(userQuery))) {
-      if (/농업인|어업인|축산|임산물/.test(text)) return false;
-    }
-
-    // 군인/병사: 관련 키워드 없으면 제외
-    if (!(/군인|병사|전역|제대/.test(userQuery))) {
-      if (/병사|전역|군인/.test(text)) return false;
-    }
-
-    return true;
-  });
-
-  // 5. 지역 필터: DB RPC에서 처리됨 (후처리 불필요)
+  // 5. 컨텍스트 불일치 필터
+  results = applyContextFilter(results, query);
 
   const finalResults = results.slice(0, matchCount);
   const condParts: string[] = [];

@@ -255,18 +255,17 @@ export function analyzeQuery(
   const GENERIC_KEYWORDS = ['지원금', '혜택', '지원', '보조금', '수당'];
   const specificKeywords = keywords.filter((k) => !GENERIC_KEYWORDS.includes(k));
 
-  const infoCount = [
+  const hasEnoughContext = [
     age !== null,
     gender !== null,
     occupation !== null,
     specificKeywords.length > 0,
     region !== null,
-  ].filter(Boolean).length;
+  ].filter(Boolean).length >= 2;
 
-  // 구체적인 주제(임산부, 주거, 취업 등)가 있으면 1개여도 검색
   const hasSpecificTopic = specificKeywords.length > 0 || occupation !== null;
 
-  if (infoCount >= 2 || hasSpecificTopic) {
+  if (hasEnoughContext || hasSpecificTopic) {
     return { action: 'search', conditions };
   }
 
@@ -281,23 +280,3 @@ function emptyConditions(): ExtractedConditions {
   return { age: null, gender: null, occupation: null, region: null, regionProvince: null, keywords: [], searchQuery: '' };
 }
 
-/*
- * === LLM 기반 조건 추출 (주석 처리) ===
- *
- * let client: OpenAI | null = null;
- *
- * function getClient(): OpenAI {
- *   if (client) return client;
- *   const apiKey = process.env.OPENAI_API_KEY;
- *   if (!apiKey) throw new Error('OPENAI_API_KEY 환경변수가 설정되지 않았습니다.');
- *   client = new OpenAI({ apiKey });
- *   return client;
- * }
- *
- * const SYSTEM_PROMPT = `너는 정부 복지 혜택 검색 도우미야...`;
- *
- * export async function analyzeQuery(userQuery: string, history: ConversationMessage[]): Promise<AnalysisResult> {
- *   // GPT-4o-mini 호출로 조건 추출
- *   ...
- * }
- */

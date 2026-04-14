@@ -6,7 +6,7 @@ const BATCH_SIZE = 100;
 
 let openaiClient: OpenAI | null = null;
 
-function getClient(): OpenAI {
+export function getOpenAIClient(): OpenAI {
   if (openaiClient) return openaiClient;
 
   const apiKey = process.env.OPENAI_API_KEY;
@@ -20,7 +20,7 @@ function getClient(): OpenAI {
 
 /** 텍스트 배열을 배치로 임베딩 생성 */
 export async function embedTexts(texts: string[]): Promise<number[][]> {
-  const client = getClient();
+  const client = getOpenAIClient();
   const allEmbeddings: number[][] = [];
 
   for (let i = 0; i < texts.length; i += BATCH_SIZE) {
