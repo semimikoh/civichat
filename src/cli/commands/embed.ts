@@ -18,6 +18,10 @@ embedCommand
   .action(async () => {
     const detailsPath = resolve(DATA_DIR, 'details.json');
     const servicesPath = resolve(DATA_DIR, 'services.json');
+    if (!existsSync(detailsPath)) {
+      console.error('details.json이 없습니다. 먼저 fetch details를 실행하세요.');
+      process.exit(1);
+    }
     const details: ServiceDetail[] = JSON.parse(readFileSync(detailsPath, 'utf-8'));
     const services: ServiceListItem[] | undefined = existsSync(servicesPath)
       ? JSON.parse(readFileSync(servicesPath, 'utf-8'))
@@ -89,6 +93,10 @@ embedCommand
   .description('지원조건 데이터 benefit_conditions 테이블 적재')
   .action(async () => {
     const conditionsPath = resolve(DATA_DIR, 'conditions.json');
+    if (!existsSync(conditionsPath)) {
+      console.error('conditions.json이 없습니다. 먼저 fetch conditions를 실행하세요.');
+      process.exit(1);
+    }
     const rawConditions: SupportCondition[] = JSON.parse(readFileSync(conditionsPath, 'utf-8'));
     console.log(`${rawConditions.length}건 지원조건 데이터 로드 완료`);
 

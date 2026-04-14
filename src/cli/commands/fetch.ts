@@ -33,8 +33,12 @@ fetchCommand
   .command('details')
   .description('서비스 상세 전체 수집 (services.json 필요)')
   .action(async () => {
-    const { readFileSync } = await import('node:fs');
+    const { readFileSync, existsSync } = await import('node:fs');
     const servicesPath = resolve(DATA_DIR, 'services.json');
+    if (!existsSync(servicesPath)) {
+      console.error('services.json이 없습니다. 먼저 fetch list를 실행하세요.');
+      process.exit(1);
+    }
     const services = JSON.parse(readFileSync(servicesPath, 'utf-8')) as Array<{ 서비스ID: string }>;
     const serviceIds = services.map((s) => s.서비스ID);
 
@@ -48,8 +52,12 @@ fetchCommand
   .command('conditions')
   .description('지원조건 전체 수집 (services.json 필요)')
   .action(async () => {
-    const { readFileSync } = await import('node:fs');
+    const { readFileSync, existsSync } = await import('node:fs');
     const servicesPath = resolve(DATA_DIR, 'services.json');
+    if (!existsSync(servicesPath)) {
+      console.error('services.json이 없습니다. 먼저 fetch list를 실행하세요.');
+      process.exit(1);
+    }
     const services = JSON.parse(readFileSync(servicesPath, 'utf-8')) as Array<{ 서비스ID: string }>;
     const serviceIds = services.map((s) => s.서비스ID);
 
