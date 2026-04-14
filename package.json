@@ -13,6 +13,7 @@
     "@mantine/core": "^9.0.2",
     "@mantine/hooks": "^9.0.2",
     "@supabase/supabase-js": "^2.103.0",
+    "@tanstack/react-virtual": "^3.13.23",
     "commander": "^14.0.3",
     "next": "16.2.3",
     "openai": "^6.34.0",
