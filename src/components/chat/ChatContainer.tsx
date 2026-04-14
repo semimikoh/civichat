@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Container, Stack, Title, Text, ScrollArea, Center, Overlay, Loader } from '@mantine/core';
+import { Container, Stack, Title, Text, ScrollArea, Center, Loader } from '@mantine/core';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { MessageList, type ChatMessage } from '@/components/chat/MessageList';
 import type { SearchResult } from '@/core/search/benefit';
@@ -93,12 +93,7 @@ export function ChatContainer() {
   };
 
   return (
-    <Container size="sm" h="100dvh" py="md" role="main" aria-label="CiviChat 복지 혜택 검색" pos="relative">
-      {loading && (
-        <Overlay fixed center backgroundOpacity={0.3} zIndex={100}>
-          <Loader size="lg" />
-        </Overlay>
-      )}
+    <Container size="sm" h="100dvh" py="md" role="main" aria-label="CiviChat 복지 혜택 검색">
       <Stack h="100%" gap="md">
         <header>
           <Title order={2}>CiviChat</Title>
@@ -110,8 +105,20 @@ export function ChatContainer() {
         {messages.length === 0 ? (
           <EmptyState />
         ) : (
-          <ScrollArea flex={1} viewportRef={viewportRef}>
+          <ScrollArea flex={1} viewportRef={viewportRef} pos="relative">
             <MessageList messages={messages} />
+            {loading && (
+              <Center
+                pos="absolute"
+                top={0}
+                left={0}
+                right={0}
+                bottom={0}
+                style={{ backgroundColor: 'rgba(255,255,255,0.6)', zIndex: 10 }}
+              >
+                <Loader size="lg" />
+              </Center>
+            )}
           </ScrollArea>
         )}
 

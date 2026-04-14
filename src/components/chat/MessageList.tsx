@@ -1,6 +1,6 @@
 'use client';
 
-import { Stack, Paper, Text, Box } from '@mantine/core';
+import { Stack, Paper, Text, Box, Loader } from '@mantine/core';
 import { StaggeredResults } from '@/components/chat/StaggeredResults';
 import type { SearchResult } from '@/core/search/benefit';
 
@@ -18,9 +18,7 @@ interface MessageListProps {
 export function MessageList({ messages }: MessageListProps) {
   return (
     <Stack gap="md">
-      {messages
-        .filter((msg) => !msg.loading)
-        .map((msg, i) => {
+      {messages.map((msg, i) => {
           const isUser = msg.role === 'user';
 
           return (
@@ -39,16 +37,20 @@ export function MessageList({ messages }: MessageListProps) {
                   maxWidth: isUser ? '75%' : '90%',
                 }}
               >
-                <Text
-                  size="sm"
-                  c={isUser ? 'white' : undefined}
-                  mb={msg.results ? 'sm' : 0}
-                  style={{ whiteSpace: 'pre-line' }}
-                >
-                  {msg.content}
-                </Text>
-                {msg.results && msg.results.length > 0 && (
-                  <StaggeredResults results={msg.results} />
+                {msg.loading ? null : (
+                  <>
+                    <Text
+                      size="sm"
+                      c={isUser ? 'white' : undefined}
+                      mb={msg.results ? 'sm' : 0}
+                      style={{ whiteSpace: 'pre-line' }}
+                    >
+                      {msg.content}
+                    </Text>
+                    {msg.results && msg.results.length > 0 && (
+                      <StaggeredResults results={msg.results} />
+                    )}
+                  </>
                 )}
               </Paper>
             </Box>

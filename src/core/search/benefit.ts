@@ -140,7 +140,20 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
     }
   }
 
-  // 4. 지역 우선 정렬
+  // 4. 텍스트 기반 연령 불일치 필터
+  if (conditions.age !== null) {
+    const age = conditions.age;
+    results = results.filter((r) => {
+      const name = r.serviceName;
+      if (age < 40 && name.includes('중장년')) return false;
+      if (age < 40 && name.includes('노인')) return false;
+      if (age >= 20 && (name.includes('어린이') || name.includes('아동'))) return false;
+      if (age >= 20 && name.includes('청소년') && !name.includes('청년')) return false;
+      return true;
+    });
+  }
+
+  // 5. 지역 우선 정렬
   if (conditions.region) {
     const region = conditions.region;
     results.sort((a, b) => {
