@@ -1,6 +1,7 @@
 'use client';
 
-import { Stack, Paper, Text, Loader, Card, Group, Badge } from '@mantine/core';
+import { Stack, Paper, Text, Loader } from '@mantine/core';
+import { BenefitCard } from '@/components/chat/BenefitCard';
 import type { SearchResult } from '@/core/search/benefit';
 
 export interface ChatMessage {
@@ -12,37 +13,6 @@ export interface ChatMessage {
 
 interface MessageListProps {
   messages: ChatMessage[];
-}
-
-function BenefitItem({ result, index }: { result: SearchResult; index: number }) {
-  return (
-    <Card withBorder padding="sm" radius="sm">
-      <Group justify="space-between" mb="xs">
-        <Text fw={600} size="sm">
-          {index + 1}. {result.serviceName}
-        </Text>
-        <Badge size="xs" variant="light">
-          {(result.similarity * 100).toFixed(0)}%
-        </Badge>
-      </Group>
-      {result.supportType && (
-        <Badge size="xs" variant="outline" mb="xs">
-          {result.supportType}
-        </Badge>
-      )}
-      <Text size="xs" c="dimmed" lineClamp={2}>
-        {result.targetAudience || '-'}
-      </Text>
-      <Text size="xs" mt={4} lineClamp={2}>
-        {result.supportContent || '-'}
-      </Text>
-      {result.contactPhone && (
-        <Text size="xs" c="dimmed" mt={4}>
-          문의: {result.contactPhone}
-        </Text>
-      )}
-    </Card>
-  );
 }
 
 export function MessageList({ messages }: MessageListProps) {
@@ -64,9 +34,9 @@ export function MessageList({ messages }: MessageListProps) {
                 {msg.content}
               </Text>
               {msg.results && (
-                <Stack gap="xs">
+                <Stack gap="sm">
                   {msg.results.map((r, idx) => (
-                    <BenefitItem key={r.serviceId} result={r} index={idx} />
+                    <BenefitCard key={r.serviceId} result={r} index={idx} />
                   ))}
                 </Stack>
               )}
