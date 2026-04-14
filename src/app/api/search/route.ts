@@ -41,8 +41,14 @@ export async function POST(request: Request) {
   }
 
   const encoder = new TextEncoder();
+  let cancelled = false;
   const stream = new ReadableStream({
     async start(controller) {
+      const enqueue = (data: string) => {
+        if (cancelled) return;
+        controller.enqueue(encoder.encode(data));
+      };
+
       if (response.results && response.results.length > 0) {
         const summaryStream = await summarizeResultsStream(
           query,
@@ -52,30 +58,26 @@ export async function POST(request: Request) {
 
         try {
           for await (const chunk of summaryStream) {
+            if (cancelled) break;
             const text = chunk.choices[0]?.delta?.content;
             if (text) {
-              controller.enqueue(encoder.encode(
-                `data: ${JSON.stringify({ type: SSE_EVENT.SUMMARY_CHUNK, text })}\n\n`
-              ));
+              enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.SUMMARY_CHUNK, text })}\n\n`);
             }
           }
 
-          controller.enqueue(encoder.encode(
-            `data: ${JSON.stringify({ type: SSE_EVENT.SUMMARY_DONE })}\n\n`
-          ));
+          enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.SUMMARY_DONE })}\n\n`);
         } catch (err) {
           console.error('요약 스트리밍 실패:', err);
-          controller.enqueue(encoder.encode(
-            `data: ${JSON.stringify({ type: SSE_EVENT.SUMMARY_DONE, error: '요약 생성 중 오류가 발생했습니다.' })}\n\n`
-          ));
+          enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.SUMMARY_DONE, error: '요약 생성 중 오류가 발생했습니다.' })}\n\n`);
         }
       }
 
-      controller.enqueue(encoder.encode(
-        `data: ${JSON.stringify({ type: SSE_EVENT.RESULTS, message: response.message, results: response.results })}\n\n`
-      ));
+      enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.RESULTS, message: response.message, results: response.results })}\n\n`);
 
-      controller.close();
+      if (!cancelled) controller.close();
+    },
+    cancel() {
+      cancelled = true;
     },
   });
 

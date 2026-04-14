@@ -213,8 +213,11 @@ pnpm install
 cp .env.example .env.local
 # SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY, GOV_API_KEY
 
-# 개발 서버
+# 개발 서버 (webpack dev server 사용)
 pnpm run dev
+
+# Turbopack dev server 확인이 필요할 때
+pnpm run dev:turbo
 
 # CLI 검색
 pnpm run cli search "26살 무직 지원금"

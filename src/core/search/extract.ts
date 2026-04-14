@@ -265,8 +265,25 @@ export function analyzeQuery(
 
   const hasSpecificTopic = specificKeywords.length > 0 || occupation !== null;
 
-  if (hasEnoughContext || hasSpecificTopic) {
+  if ((hasEnoughContext || hasSpecificTopic) && region !== null) {
     return { action: 'search', conditions };
+  }
+
+  if (region === null) {
+    const knownParts: string[] = [];
+    if (age !== null) knownParts.push(`${age}세`);
+    if (occupation) knownParts.push(occupation);
+    if (specificKeywords.length > 0) knownParts.push(specificKeywords.join(', '));
+
+    const prefix = knownParts.length > 0
+      ? `${knownParts.join(', ')} 조건은 확인했어요! `
+      : '';
+
+    return {
+      action: 'ask',
+      conditions,
+      followUpQuestion: `${prefix}어느 지역에 거주하고 계신가요? (예: 서울, 경기 수원, 부산 등)`,
+    };
   }
 
   return {

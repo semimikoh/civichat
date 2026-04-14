@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Stack } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import { BenefitCard } from '@/components/chat/BenefitCard';
 import type { SearchResult } from '@/core/search/benefit';
 
@@ -9,29 +9,74 @@ interface StaggeredResultsProps {
   results: SearchResult[];
 }
 
+interface RegionGroup {
+  region: string;
+  results: SearchResult[];
+}
+
+function groupByRegion(results: SearchResult[]): RegionGroup[] {
+  const groups = new Map<string, SearchResult[]>();
+
+  for (const r of results) {
+    const parts = (r.managingAgency || '').split(/\s+/);
+    const region = parts[0] || '기타';
+    const existing = groups.get(region);
+    if (existing) {
+      existing.push(r);
+    } else {
+      groups.set(region, [r]);
+    }
+  }
+
+  return Array.from(groups, ([region, items]) => ({ region, results: items }));
+}
+
 function StaggeredResultsInner({ results }: StaggeredResultsProps) {
   const [visibleCount, setVisibleCount] = useState(1);
+  const regionGroups = useMemo(() => groupByRegion(results), [results]);
+
+  const flatItems = useMemo(() => {
+    const items: { type: 'header'; region: string; key: string }[] | { type: 'card'; result: SearchResult; globalIndex: number; key: string }[] = [];
+    let globalIndex = 0;
+    for (const group of regionGroups) {
+      (items as { type: 'header'; region: string; key: string }[]).push({ type: 'header', region: group.region, key: `header-${group.region}` });
+      for (const r of group.results) {
+        (items as { type: 'card'; result: SearchResult; globalIndex: number; key: string }[]).push({ type: 'card', result: r, globalIndex, key: r.serviceId });
+        globalIndex++;
+      }
+    }
+    return items as ({ type: 'header'; region: string; key: string } | { type: 'card'; result: SearchResult; globalIndex: number; key: string })[];
+  }, [regionGroups]);
 
   useEffect(() => {
-    if (visibleCount >= results.length) return;
+    if (visibleCount >= flatItems.length) return;
 
     const timer = setTimeout(() => {
       setVisibleCount((c) => c + 1);
     }, 120);
 
     return () => clearTimeout(timer);
-  }, [visibleCount, results.length]);
+  }, [visibleCount, flatItems.length]);
 
   return (
     <Stack gap="sm">
-      {results.slice(0, visibleCount).map((r, idx) => (
-        <div
-          key={r.serviceId}
-          style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-        >
-          <BenefitCard result={r} index={idx} />
-        </div>
-      ))}
+      {flatItems.slice(0, visibleCount).map((item) => {
+        if (item.type === 'header') {
+          return (
+            <Text key={item.key} size="xs" fw={700} c="dimmed" mt="xs">
+              {item.region}
+            </Text>
+          );
+        }
+        return (
+          <div
+            key={item.key}
+            style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
+          >
+            <BenefitCard result={item.result} index={item.globalIndex} />
+          </div>
+        );
+      })}
     </Stack>
   );
 }

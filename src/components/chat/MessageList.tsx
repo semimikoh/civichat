@@ -4,6 +4,7 @@ import { Paper, Text, Box } from '@mantine/core';
 import Markdown from 'react-markdown';
 import { useMessageVirtualizer } from '@/lib/text-layout/use-message-height';
 import { USER_BUBBLE_WIDTH_RATIO, ASSISTANT_BUBBLE_WIDTH_RATIO } from '@/lib/text-layout/prepared';
+import { useTypewriter } from '@/lib/use-typewriter';
 import { StaggeredResults } from '@/components/chat/StaggeredResults';
 import type { ChatMessage } from '@/components/chat/types';
 
@@ -15,6 +16,14 @@ interface MessageListProps {
 
 function AssistantMessage({ msg }: { msg: ChatMessage }) {
   const hasResults = msg.results && msg.results.length > 0;
+  const { visibleText: visibleSummary, isDone: summaryDone } = useTypewriter(msg.summary ?? '', {
+    interval: 40,
+    enabled: Boolean(msg.summary),
+  });
+  const { visibleText: visibleContent, isDone: contentDone } = useTypewriter(
+    !msg.summary ? msg.content : '',
+    { interval: 40, enabled: Boolean(!msg.summary && msg.content) },
+  );
 
   return (
     <>
@@ -24,16 +33,16 @@ function AssistantMessage({ msg }: { msg: ChatMessage }) {
             allowedElements={['p', 'strong', 'em', 'br', 'ol', 'ul', 'li']}
             unwrapDisallowed
           >
-            {msg.summary}
+            {visibleSummary}
           </Markdown>
         </Box>
       )}
       {!msg.summary && msg.content && (
         <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
-          {msg.content}
+          {visibleContent}
         </Text>
       )}
-      {hasResults && (
+      {hasResults && summaryDone && (
         <StaggeredResults results={msg.results!} />
       )}
     </>
