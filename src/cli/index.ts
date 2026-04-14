@@ -3,6 +3,7 @@ config({ path: '.env.local' });
 import { Command } from 'commander';
 import { fetchCommand } from '@/cli/commands/fetch';
 import { embedCommand } from '@/cli/commands/embed';
+import { searchCommand } from '@/cli/commands/search';
 
 const program = new Command();
 
@@ -20,5 +21,6 @@ program
 
 program.addCommand(fetchCommand);
 program.addCommand(embedCommand);
+program.addCommand(searchCommand);
 
 program.parse();
