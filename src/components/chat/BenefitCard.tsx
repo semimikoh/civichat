@@ -37,9 +37,10 @@ export function BenefitCard({ result, index }: BenefitCardProps) {
             component="a"
             href={linkUrl}
             target="_blank"
+            rel="noopener noreferrer"
             variant="subtle"
             size="sm"
-            aria-label="상세 페이지 열기"
+            aria-label={`${result.serviceName} 상세 페이지 열기 (새 창)`}
             flex="none"
           >
             <LinkIcon />

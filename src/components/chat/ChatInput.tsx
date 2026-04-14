@@ -26,6 +26,7 @@ export function ChatInput({ onSubmit, disabled }: ChatInputProps) {
         e.preventDefault();
         handleSubmit();
       }}
+      id="chat-input"
       role="search"
       aria-label="복지 혜택 검색"
     >
