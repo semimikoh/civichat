@@ -23,6 +23,7 @@ create table if not exists benefits (
   law text,
   administrative_rule text,
   local_regulation text,
+  detail_url text,
   embedding_text text,
   embedding vector(1536),
   updated_at text,
