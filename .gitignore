@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +40,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# data (API 원본 — 용량 큼)
+/data/services.json
+/data/details.json
+/data/conditions.json
+
+# auto-generated
+AGENTS.md
+CLAUDE.md
+/docs/
