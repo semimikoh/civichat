@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Box, Container, Stack, Title, Text, Center, Loader } from '@mantine/core';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { MessageList, type ChatMessage } from '@/components/chat/MessageList';
@@ -35,6 +35,7 @@ function EmptyState() {
 export function ChatContainer() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const updateLastAssistant = useCallback((updater: (msg: ChatMessage) => ChatMessage) => {
     setMessages((prev) => {
@@ -48,6 +49,10 @@ export function ChatContainer() {
   }, []);
 
   const handleSubmit = async (query: string) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     const userMsg: ChatMessage = { role: 'user', content: query };
     const loadingMsg: ChatMessage = { role: 'assistant', content: '', loading: true };
 
@@ -68,6 +73,7 @@ export function ChatContainer() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, history }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -107,7 +113,13 @@ export function ChatContainer() {
           const json = line.slice(6);
           if (!json) continue;
 
-          const event: SSEEvent = JSON.parse(json);
+          let event: SSEEvent;
+          try {
+            event = JSON.parse(json) as SSEEvent;
+          } catch {
+            console.error('SSE JSON 파싱 실패:', json);
+            continue;
+          }
 
           if (event.type === 'summary_chunk' && event.text) {
             summaryText += event.text;
@@ -134,6 +146,7 @@ export function ChatContainer() {
         }
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
       setMessages((prev) => [
         ...prev.slice(0, -1),

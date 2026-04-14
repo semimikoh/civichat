@@ -49,18 +49,25 @@ export async function POST(request: Request) {
           response.condText ?? '',
         );
 
-        for await (const chunk of summaryStream) {
-          const text = chunk.choices[0]?.delta?.content;
-          if (text) {
-            controller.enqueue(encoder.encode(
-              `data: ${JSON.stringify({ type: 'summary_chunk', text })}\n\n`
-            ));
+        try {
+          for await (const chunk of summaryStream) {
+            const text = chunk.choices[0]?.delta?.content;
+            if (text) {
+              controller.enqueue(encoder.encode(
+                `data: ${JSON.stringify({ type: 'summary_chunk', text })}\n\n`
+              ));
+            }
           }
-        }
 
-        controller.enqueue(encoder.encode(
-          `data: ${JSON.stringify({ type: 'summary_done' })}\n\n`
-        ));
+          controller.enqueue(encoder.encode(
+            `data: ${JSON.stringify({ type: 'summary_done' })}\n\n`
+          ));
+        } catch (err) {
+          console.error('요약 스트리밍 실패:', err);
+          controller.enqueue(encoder.encode(
+            `data: ${JSON.stringify({ type: 'summary_done', error: '요약 생성 중 오류가 발생했습니다.' })}\n\n`
+          ));
+        }
       }
 
       controller.enqueue(encoder.encode(
