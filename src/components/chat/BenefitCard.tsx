@@ -10,7 +10,7 @@ interface BenefitCardProps {
 
 export function BenefitCard({ result, index }: BenefitCardProps) {
   return (
-    <Card withBorder padding="md" radius="md">
+    <Card withBorder padding="md" radius="md" role="article" aria-label={result.serviceName}>
       <Group justify="space-between" mb="xs">
         <Text fw={700} size="sm" lineClamp={1} flex={1}>
           {index + 1}. {result.serviceName}
