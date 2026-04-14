@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import { Stack, Paper, Text, Box } from '@mantine/core';
+import Markdown from 'react-markdown';
 import { useMessageVirtualizer } from '@/lib/text-layout/use-message-height';
 import { StaggeredResults } from '@/components/chat/StaggeredResults';
 import type { SearchResult } from '@/core/search/benefit';
@@ -24,15 +24,14 @@ function AssistantMessage({ msg }: { msg: ChatMessage }) {
   return (
     <>
       {msg.summary && (
-        <Text
-          size="sm"
-          mb={hasResults ? 'sm' : 0}
-          style={{ whiteSpace: 'pre-line' }}
-          dangerouslySetInnerHTML={{
-            __html: msg.summary
-              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'),
-          }}
-        />
+        <Box mb={hasResults ? 'sm' : 0} fz="sm">
+          <Markdown
+            allowedElements={['p', 'strong', 'em', 'br', 'ol', 'ul', 'li']}
+            unwrapDisallowed
+          >
+            {msg.summary}
+          </Markdown>
+        </Box>
       )}
       {!msg.summary && msg.content && (
         <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
