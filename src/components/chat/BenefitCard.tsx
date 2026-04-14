@@ -33,12 +33,12 @@ export function BenefitCard({ result, index }: BenefitCardProps) {
       <Stack gap="xs">
         <div>
           <Text size="xs" fw={600} c="dimmed">지원대상</Text>
-          <Text size="sm" lineClamp={3}>{result.targetAudience || '-'}</Text>
+          <Text size="sm" lineClamp={3} style={{ whiteSpace: 'pre-line' }}>{result.targetAudience || '-'}</Text>
         </div>
 
         <div>
           <Text size="xs" fw={600} c="dimmed">지원내용</Text>
-          <Text size="sm" lineClamp={3}>{result.supportContent || '-'}</Text>
+          <Text size="sm" lineClamp={3} style={{ whiteSpace: 'pre-line' }}>{result.supportContent || '-'}</Text>
         </div>
 
         <Divider />
@@ -46,7 +46,7 @@ export function BenefitCard({ result, index }: BenefitCardProps) {
         <Group gap="lg">
           <div>
             <Text size="xs" fw={600} c="dimmed">신청방법</Text>
-            <Text size="xs">{result.applicationMethod || '-'}</Text>
+            <Text size="xs" style={{ whiteSpace: 'pre-line' }}>{result.applicationMethod || '-'}</Text>
           </div>
           <div>
             <Text size="xs" fw={600} c="dimmed">소관기관</Text>
@@ -57,7 +57,7 @@ export function BenefitCard({ result, index }: BenefitCardProps) {
         {result.contactPhone && (
           <div>
             <Text size="xs" fw={600} c="dimmed">문의</Text>
-            <Text size="xs">{result.contactPhone}</Text>
+            <Text size="xs">{result.contactPhone.split('||').join(' / ')}</Text>
           </div>
         )}
 
