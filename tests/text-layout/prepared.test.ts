@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { prepareTextLayout, prepareMarkdownLayout, estimateMessageHeight, type LayoutParams } from '@/lib/text-layout/prepared';
-import { DEFAULT_FONT, BOLD_FONT } from '@/lib/text-layout/measure';
+import { DEFAULT_FONT } from '@/lib/text-layout/measure';
 import { createCache } from '@/lib/text-layout/cache';
 
 // Canvas mock: 글자당 고정 폭 7px
