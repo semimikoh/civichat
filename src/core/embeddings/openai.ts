@@ -18,6 +18,34 @@ export function getOpenAIClient(): OpenAI {
   return openaiClient;
 }
 
+const MAX_RETRIES = 5;
+
+/** 단일 배치 임베딩 (rate limit 재시도 포함) */
+async function embedBatchWithRetry(client: OpenAI, batch: string[]): Promise<number[][]> {
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const response = await client.embeddings.create({
+        model: MODEL,
+        input: batch,
+        dimensions: DIMENSIONS,
+      });
+      return response.data
+        .sort((a, b) => a.index - b.index)
+        .map((d) => d.embedding);
+    } catch (err) {
+      const isRateLimit = err instanceof Error && 'status' in err && (err as { status: number }).status === 429;
+      if (isRateLimit && attempt < MAX_RETRIES - 1) {
+        const waitMs = Math.min(1000 * Math.pow(2, attempt), 10000);
+        console.log(`rate limit, ${waitMs}ms 대기 후 재시도 (${attempt + 1}/${MAX_RETRIES})...`);
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('임베딩 재시도 횟수 초과');
+}
+
 /** 텍스트 배열을 배치로 임베딩 생성 */
 export async function embedTexts(texts: string[]): Promise<number[][]> {
   const client = getOpenAIClient();
@@ -25,17 +53,7 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
 
   for (let i = 0; i < texts.length; i += BATCH_SIZE) {
     const batch = texts.slice(i, i + BATCH_SIZE);
-
-    const response = await client.embeddings.create({
-      model: MODEL,
-      input: batch,
-      dimensions: DIMENSIONS,
-    });
-
-    const batchEmbeddings = response.data
-      .sort((a, b) => a.index - b.index)
-      .map((d) => d.embedding);
-
+    const batchEmbeddings = await embedBatchWithRetry(client, batch);
     allEmbeddings.push(...batchEmbeddings);
 
     if (i + BATCH_SIZE < texts.length) {

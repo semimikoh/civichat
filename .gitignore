@@ -45,6 +45,8 @@ next-env.d.ts
 /data/services.json
 /data/details.json
 /data/conditions.json
+/data/legalize-kr/
+/data/law-articles.json
 
 # auto-generated
 AGENTS.md
