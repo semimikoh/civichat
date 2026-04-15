@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { ActionIcon, Box, Container, Stack, Group, TextInput, Title, Text, Center, Loader, Paper } from '@mantine/core';
+import { ActionIcon, Box, Button, Container, Stack, Group, TextInput, Title, Text, Center, Loader, Paper } from '@mantine/core';
 import Markdown from 'react-markdown';
 import { LawArticleList } from '@/components/legal/LawArticleCard';
 import { useTypewriter } from '@/lib/use-typewriter';
@@ -170,6 +170,7 @@ export function ChatContainer() {
 
       await parseSSEStream<LawSearchResult>(reader, {
         onSummaryChunk(_chunk, accumulated) {
+          setIsInputDisabled(false);
           setMessages((prev) => {
             const updated = [...prev];
             const idx = updated.findLastIndex((m) => m.role === 'assistant');
@@ -224,23 +225,9 @@ export function ChatContainer() {
       }}>검색 입력으로 건너뛰기</a>
       <Stack h="100%" gap="md">
         <header>
-          <Group justify="space-between" align="baseline">
-            <Group gap="xs" align="baseline">
-              <Title order={1} size="h2">CiviChat</Title>
-              <Text size="sm" c="dimmed">궁금한 법령, 쉽게 찾아보세요</Text>
-            </Group>
-            {messages.length > 0 && (
-              <ActionIcon
-                variant="subtle"
-                size="sm"
-                aria-label="새 대화"
-                onClick={() => { abortRef.current?.abort(); readerRef.current?.cancel(); setMessages([]); setIsInputDisabled(false); }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z" />
-                </svg>
-              </ActionIcon>
-            )}
+          <Group gap="xs" align="baseline">
+            <Title order={1} size="h2">CiviChat</Title>
+            <Text size="sm" c="dimmed">궁금한 법령, 쉽게 찾아보세요</Text>
           </Group>
         </header>
 
@@ -290,7 +277,7 @@ export function ChatContainer() {
                         <Paper
                           p="sm"
                           radius="lg"
-                          bg={isUser ? 'blue.6' : 'var(--mantine-color-default)'}
+                          bg={isUser ? 'blue.6' : 'var(--mantine-color-default-hover)'}
                           style={{
                             maxWidth: isUser
                               ? `${USER_BUBBLE_WIDTH_RATIO * 100}%`
@@ -325,6 +312,17 @@ export function ChatContainer() {
           </Box>
         )}
 
+        {!isInputDisabled && messages.some((m) => m.results && m.results.length > 0) && (
+          <Center>
+            <Button
+              variant="subtle"
+              size="xs"
+              onClick={() => { abortRef.current?.abort(); readerRef.current?.cancel(); setMessages([]); setIsInputDisabled(false); }}
+            >
+              새 대화 하기
+            </Button>
+          </Center>
+        )}
         <ChatInput onSubmit={handleSubmit} disabled={isInputDisabled} />
       </Stack>
     </Container>

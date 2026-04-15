@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { ActionIcon, Box, Container, Stack, Group, Title, Text, Center, Loader } from '@mantine/core';
+import { Box, Button, Container, Stack, Group, Title, Text, Center, Loader } from '@mantine/core';
 import { ChatInput } from '@/components/benefit/ChatInput';
 import { MessageList } from '@/components/benefit/MessageList';
 import type { ChatMessage } from '@/components/benefit/types';
@@ -99,6 +99,7 @@ export function ChatContainer() {
 
       await parseSSEStream<SearchResult>(reader, {
         onSummaryChunk(_chunk, accumulated) {
+          setIsInputDisabled(false);
           setMessages((prev) => {
             const updated = [...prev];
             const idx = updated.findLastIndex((m) => m.role === 'assistant');
@@ -143,23 +144,9 @@ export function ChatContainer() {
       }}>검색 입력으로 건너뛰기</a>
       <Stack h="100%" gap="md">
         <header>
-          <Group justify="space-between" align="baseline">
-            <Group gap="xs" align="baseline">
-              <Title order={1} size="h2">CiviChat</Title>
-              <Text size="sm" c="dimmed">나에게 맞는 복지 혜택을 찾아보세요</Text>
-            </Group>
-            {messages.length > 0 && (
-              <ActionIcon
-                variant="subtle"
-                size="sm"
-                aria-label="새 대화"
-                onClick={() => { abortRef.current?.abort(); readerRef.current?.cancel(); setMessages([]); setIsInputDisabled(false); }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z" />
-                </svg>
-              </ActionIcon>
-            )}
+          <Group gap="xs" align="baseline">
+            <Title order={1} size="h2">CiviChat</Title>
+            <Text size="sm" c="dimmed">나에게 맞는 복지 혜택을 찾아보세요</Text>
           </Group>
         </header>
 
@@ -185,6 +172,17 @@ export function ChatContainer() {
           </Box>
         )}
 
+        {!isInputDisabled && messages.some((m) => m.results && m.results.length > 0) && (
+          <Center>
+            <Button
+              variant="subtle"
+              size="xs"
+              onClick={() => { abortRef.current?.abort(); readerRef.current?.cancel(); setMessages([]); setIsInputDisabled(false); }}
+            >
+              새 대화 하기
+            </Button>
+          </Center>
+        )}
         <ChatInput onSubmit={handleSubmit} disabled={isInputDisabled} />
       </Stack>
     </Container>

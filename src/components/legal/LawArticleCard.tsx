@@ -1,7 +1,8 @@
 'use client';
 
 import { type ReactNode } from 'react';
-import { Accordion, Text, Badge, Group, Stack, ActionIcon, Box, Mark } from '@mantine/core';
+import { Accordion, Text, Badge, Group, Stack, ActionIcon, Box, Mark, Card } from '@mantine/core';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import type { LawSearchResult } from '@/core/legal/search';
 
 interface LawArticleListProps {
@@ -38,66 +39,75 @@ export function LawArticleList({ results, query }: LawArticleListProps) {
   return (
     <Accordion variant="separated" radius="md">
       {results.map((r, i) => (
-        <Accordion.Item key={r.id} value={String(r.id)}>
-          <Accordion.Control>
-            <Stack gap={2}>
-              <Group gap="xs" wrap="nowrap">
-                <Text fw={700} size="sm" flex={1} lineClamp={1}>
-                  {i + 1}. {r.lawTitle}
-                </Text>
-                <Badge size="xs" variant="outline" color="gray" flex="none">{r.lawType}</Badge>
-              </Group>
-              {r.chapter && (
-                <Text size="xs" c="dimmed">{r.chapter}</Text>
-              )}
-              <Text size="sm" fw={600} c="blue.7">
-                {r.articleNumber} ({r.articleTitle})
-              </Text>
-            </Stack>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <Stack gap="sm">
-              <Box
-                p="sm"
-                style={{
-                  backgroundColor: 'var(--mantine-color-default-hover)',
-                  borderRadius: 'var(--mantine-radius-sm)',
-                  borderLeft: '3px solid var(--mantine-color-blue-4)',
-                }}
-              >
-                <Text size="sm" style={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>
-                  {highlightText(r.articleContent, query)}
-                </Text>
-              </Box>
-              {r.sourceUrl && (
-                <Group gap="xs">
-                  <ActionIcon
-                    component="a"
-                    href={r.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    variant="subtle"
-                    size="sm"
-                    aria-label={`${r.lawTitle} 법령 원문 보기 (새 창)`}
-                  >
-                    <LinkIcon />
-                  </ActionIcon>
-                  <Text
-                    component="a"
-                    href={r.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    size="xs"
-                    c="blue"
-                    style={{ textDecoration: 'none' }}
-                  >
-                    법령 원문 보기
+        <ErrorBoundary
+          key={r.id}
+          fallback={
+            <Card withBorder padding="md" radius="md">
+              <Text size="sm" c="dimmed">법령 조문을 표시할 수 없습니다.</Text>
+            </Card>
+          }
+        >
+          <Accordion.Item value={String(r.id)}>
+            <Accordion.Control>
+              <Stack gap={2}>
+                <Group gap="xs" wrap="nowrap">
+                  <Text fw={700} size="sm" flex={1} lineClamp={1}>
+                    {i + 1}. {r.lawTitle}
                   </Text>
+                  <Badge size="xs" variant="outline" color="gray" flex="none">{r.lawType}</Badge>
                 </Group>
-              )}
-            </Stack>
-          </Accordion.Panel>
-        </Accordion.Item>
+                {r.chapter && (
+                  <Text size="xs" c="dimmed">{r.chapter}</Text>
+                )}
+                <Text size="sm" fw={600} c="blue.7">
+                  {r.articleNumber} ({r.articleTitle})
+                </Text>
+              </Stack>
+            </Accordion.Control>
+            <Accordion.Panel>
+              <Stack gap="sm">
+                <Box
+                  p="sm"
+                  style={{
+                    backgroundColor: 'var(--mantine-color-default-hover)',
+                    borderRadius: 'var(--mantine-radius-sm)',
+                    borderLeft: '3px solid var(--mantine-color-blue-4)',
+                  }}
+                >
+                  <Text size="sm" style={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>
+                    {highlightText(r.articleContent, query)}
+                  </Text>
+                </Box>
+                {r.sourceUrl && (
+                  <Group gap="xs">
+                    <ActionIcon
+                      component="a"
+                      href={r.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      variant="subtle"
+                      size="sm"
+                      aria-label={`${r.lawTitle} 법령 원문 보기 (새 창)`}
+                    >
+                      <LinkIcon />
+                    </ActionIcon>
+                    <Text
+                      component="a"
+                      href={r.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      size="xs"
+                      c="blue"
+                      style={{ textDecoration: 'none' }}
+                    >
+                      법령 원문 보기
+                    </Text>
+                  </Group>
+                )}
+              </Stack>
+            </Accordion.Panel>
+          </Accordion.Item>
+        </ErrorBoundary>
       ))}
     </Accordion>
   );

@@ -96,7 +96,7 @@ export function MessageList({ messages }: MessageListProps) {
                 <Paper
                   p="sm"
                   radius="lg"
-                  bg={isUser ? 'blue.6' : 'var(--mantine-color-default)'}
+                  bg={isUser ? 'blue.6' : 'var(--mantine-color-default-hover)'}
                   style={{
                     maxWidth: isUser
                       ? `${USER_BUBBLE_WIDTH_RATIO * 100}%`

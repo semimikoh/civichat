@@ -184,7 +184,7 @@ export const LAW_ACCORDION_COLLAPSED_HEIGHT = 80;
 
 /** 말풍선 최대 너비 비율 — MessageList.tsx, ChatContainer.tsx의 maxWidth와 일치시킬 것 */
 export const USER_BUBBLE_WIDTH_RATIO = 0.75;
-export const ASSISTANT_BUBBLE_WIDTH_RATIO = 0.95;
+export const ASSISTANT_BUBBLE_WIDTH_RATIO = 0.80;
 
 export function estimateMessageHeight(
   message: VirtualizableMessage,

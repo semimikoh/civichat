@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Stack, Text } from '@mantine/core';
+import { Stack, Text, Card as MantineCard } from '@mantine/core';
 import { BenefitCard } from '@/components/benefit/BenefitCard';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import type { SearchResult } from '@/core/benefit/search';
 
 interface StaggeredResultsProps {
@@ -74,7 +75,15 @@ function StaggeredResultsInner({ results, condText }: StaggeredResultsProps) {
             key={item.key}
             style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
           >
-            <BenefitCard result={item.result} index={item.globalIndex} condText={condText} />
+            <ErrorBoundary
+              fallback={
+                <MantineCard withBorder padding="md" radius="md">
+                  <Text size="sm" c="dimmed">카드를 표시할 수 없습니다.</Text>
+                </MantineCard>
+              }
+            >
+              <BenefitCard result={item.result} index={item.globalIndex} condText={condText} />
+            </ErrorBoundary>
           </div>
         );
       })}

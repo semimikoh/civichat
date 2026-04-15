@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-hooks/incompatible-library -- useVirtualizer는 React Compiler 메모이제이션 대상에서 제외 */
 
 import { useRef, useCallback, useMemo, useEffect, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
