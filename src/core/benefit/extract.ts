@@ -216,6 +216,8 @@ function extractPreviousConditions(history: ConversationMessage[]): ExtractedCon
     if (occ) merged.occupation = occ;
     const { region, regionProvince } = extractRegion(msg.content);
     if (region) { merged.region = region; merged.regionProvince = regionProvince; }
+    const kw = extractKeywords(msg.content);
+    if (kw.length > 0) merged.keywords = kw;
   }
 
   return merged;

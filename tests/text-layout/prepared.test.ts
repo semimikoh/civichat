@@ -133,7 +133,7 @@ describe('estimateMessageHeight', () => {
       cache,
     );
     const h2 = estimateMessageHeight(
-      { role: 'assistant', content: '결과', results: [{ serviceId: '1' }, { serviceId: '2' }] },
+      { role: 'assistant', content: '결과', extraHeight: 2 * (200 + 8) },
       400,
       cache,
     );

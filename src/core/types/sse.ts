@@ -7,3 +7,12 @@ export const SSE_EVENT = {
 } as const;
 
 export type SSEEventType = typeof SSE_EVENT[keyof typeof SSE_EVENT];
+
+/** SSE 이벤트 페이로드 (복지/법령 공통) */
+export interface SSEEvent<TResults = unknown> {
+  type: SSEEventType;
+  message?: string;
+  results?: TResults[];
+  text?: string;
+  error?: string;
+}

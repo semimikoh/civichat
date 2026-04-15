@@ -10,22 +10,24 @@ import {
 export { summarizeResults } from '@/core/benefit/summarize';
 export type { ConversationMessage } from '@/core/benefit/extract';
 
+const nullableStr = z.string().nullable().transform((v) => v ?? '');
+
 const rpcRowSchema = z.object({
   service_id: z.string(),
   service_name: z.string(),
-  service_purpose: z.string(),
-  support_type: z.string(),
-  target_audience: z.string(),
-  selection_criteria: z.string(),
-  support_content: z.string(),
-  application_method: z.string(),
-  application_deadline: z.string(),
-  contact_agency: z.string(),
-  contact_phone: z.string(),
-  online_application_url: z.string(),
-  detail_url: z.string(),
-  managing_agency: z.string(),
-  law: z.string(),
+  service_purpose: nullableStr,
+  support_type: nullableStr,
+  target_audience: nullableStr,
+  selection_criteria: nullableStr,
+  support_content: nullableStr,
+  application_method: nullableStr,
+  application_deadline: nullableStr,
+  contact_agency: nullableStr,
+  contact_phone: nullableStr,
+  online_application_url: nullableStr,
+  detail_url: nullableStr,
+  managing_agency: nullableStr,
+  law: nullableStr,
   similarity: z.number(),
 });
 

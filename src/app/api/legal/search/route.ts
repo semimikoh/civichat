@@ -38,9 +38,9 @@ export async function POST(request: Request) {
       };
 
       if (response.results.length > 0) {
-        const summaryStream = await summarizeLawResultsStream(query, response.results);
-
         try {
+          const summaryStream = await summarizeLawResultsStream(query, response.results);
+
           for await (const chunk of summaryStream) {
             if (cancelled) break;
             const text = chunk.choices[0]?.delta?.content;

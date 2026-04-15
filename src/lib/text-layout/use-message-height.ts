@@ -10,10 +10,8 @@ export interface VirtualizableMessage {
   role: 'user' | 'assistant';
   content: string;
   summary?: string;
-  /** 복지 검색 결과 (높이 계산용) */
-  results?: unknown[];
-  /** 법령 검색 결과 (높이 계산용) */
-  lawResults?: unknown[];
+  /** 도메인이 직접 계산한 추가 높이 (카드, 아코디언 등) */
+  extraHeight?: number;
 }
 
 const MESSAGE_GAP = 12;
@@ -54,7 +52,7 @@ export function useMessageVirtualizer(messages: VirtualizableMessage[]) {
       const msg = messages[index];
       if (!msg) return 60;
 
-      const cacheKey = `${msg.role}:${msg.content.length}:${msg.summary?.length ?? 0}:${msg.results?.length ?? 0}:${msg.lawResults?.length ?? 0}:${containerWidth}`;
+      const cacheKey = `${msg.role}:${msg.content.length}:${msg.summary?.length ?? 0}:${msg.extraHeight ?? 0}:${containerWidth}`;
       const cached = heightCache.current.get(cacheKey);
       if (cached !== undefined) return cached;
 

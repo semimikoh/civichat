@@ -59,13 +59,13 @@ export async function POST(request: Request) {
       };
 
       if (response.results && response.results.length > 0) {
-        const summaryStream = await summarizeResultsStream(
-          query,
-          response.results,
-          response.condText ?? '',
-        );
-
         try {
+          const summaryStream = await summarizeResultsStream(
+            query,
+            response.results,
+            response.condText ?? '',
+          );
+
           for await (const chunk of summaryStream) {
             if (cancelled) break;
             const text = chunk.choices[0]?.delta?.content;
