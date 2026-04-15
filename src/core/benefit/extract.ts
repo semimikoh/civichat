@@ -116,12 +116,35 @@ const PROVINCE_MAP: Record<string, string> = {
   '세종': '세종특별자치시', '세종시': '세종특별자치시',
 };
 
-// 경기도 시군 목록 (대표적인 것)
-const GYEONGGI_CITIES = [
-  '수원시', '성남시', '고양시', '용인시', '부천시', '안산시', '안양시', '남양주시',
-  '화성시', '평택시', '의정부시', '시흥시', '파주시', '김포시', '광명시', '광주시',
-  '군포시', '하남시', '오산시', '이천시', '안성시', '의왕시', '양주시', '구리시',
-  '포천시', '여주시', '동두천시', '과천시', '양평군', '가평군', '연천군',
+// 도별 시군 목록 [시군명, 광역시도]
+const CITY_TO_PROVINCE: [string, string][] = [
+  // 경기도
+  ...['수원시', '성남시', '고양시', '용인시', '부천시', '안산시', '안양시', '남양주시',
+    '화성시', '평택시', '의정부시', '시흥시', '파주시', '김포시', '광명시', '광주시',
+    '군포시', '하남시', '오산시', '이천시', '안성시', '의왕시', '양주시', '구리시',
+    '포천시', '여주시', '동두천시', '과천시', '양평군', '가평군', '연천군',
+  ].map((c): [string, string] => [c, '경기도']),
+  // 전북특별자치도
+  ...['전주시', '익산시', '군산시', '정읍시', '남원시', '김제시',
+  ].map((c): [string, string] => [c, '전북특별자치도']),
+  // 전라남도
+  ...['목포시', '여수시', '순천시', '나주시', '광양시',
+  ].map((c): [string, string] => [c, '전라남도']),
+  // 충청북도
+  ...['청주시', '충주시', '제천시',
+  ].map((c): [string, string] => [c, '충청북도']),
+  // 충청남도
+  ...['천안시', '아산시', '서산시', '논산시', '당진시', '공주시',
+  ].map((c): [string, string] => [c, '충청남도']),
+  // 경상북도
+  ...['포항시', '경주시', '구미시', '김천시', '안동시', '영주시', '상주시',
+  ].map((c): [string, string] => [c, '경상북도']),
+  // 경상남도
+  ...['창원시', '김해시', '진주시', '양산시', '거제시', '통영시', '사천시',
+  ].map((c): [string, string] => [c, '경상남도']),
+  // 강원특별자치도
+  ...['춘천시', '원주시', '강릉시', '동해시', '속초시', '삼척시',
+  ].map((c): [string, string] => [c, '강원특별자치도']),
 ];
 
 function extractRegion(text: string): { region: string | null; regionProvince: string | null } {
@@ -132,11 +155,11 @@ function extractRegion(text: string): { region: string | null; regionProvince: s
     }
   }
 
-  // 2. 시군구 직접 매칭 (경기도 시군)
-  for (const city of GYEONGGI_CITIES) {
+  // 2. 시군구 직접 매칭 (전국)
+  for (const [city, province] of CITY_TO_PROVINCE) {
     const short = city.replace(/시$|군$/, '');
     if (text.includes(city) || text.includes(short)) {
-      return { region: city, regionProvince: '경기도' };
+      return { region: city, regionProvince: province };
     }
   }
 
