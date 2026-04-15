@@ -35,13 +35,16 @@ async function fetchApi<T>(
   }
 
   const json: unknown = await res.json();
-  const body = json as Gov24ApiResponse<T>;
 
-  if (!Array.isArray(body.data)) {
+  if (
+    typeof json !== 'object' || json === null
+    || !('data' in json) || !Array.isArray((json as Record<string, unknown>).data)
+    || !('totalCount' in json) || typeof (json as Record<string, unknown>).totalCount !== 'number'
+  ) {
     throw new Error(`API 응답 형식 오류: ${JSON.stringify(json).slice(0, 200)}`);
   }
 
-  return body;
+  return json as Gov24ApiResponse<T>;
 }
 
 function delay(ms: number): Promise<void> {

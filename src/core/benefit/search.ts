@@ -204,7 +204,11 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
   const searchText = conditions.region
     ? conditions.keywords.join(' ') || conditions.searchQuery
     : conditions.searchQuery;
-  const [queryEmbedding] = await embedTexts([searchText]);
+  const embeddings = await embedTexts([searchText]);
+  if (embeddings.length === 0) {
+    throw new Error('임베딩 생성 실패: 빈 결과');
+  }
+  const [queryEmbedding] = embeddings;
 
   const supabase = getSupabaseClient();
 

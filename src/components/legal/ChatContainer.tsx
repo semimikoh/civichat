@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Box, Container, Stack, Group, Title, Text, Center, Loader, Paper } from '@mantine/core';
+import { ActionIcon, Box, Container, Stack, Group, TextInput, Title, Text, Center, Loader, Paper } from '@mantine/core';
 import Markdown from 'react-markdown';
 import { LawArticleList } from '@/components/legal/LawArticleCard';
 import { useTypewriter } from '@/lib/use-typewriter';
@@ -130,40 +130,26 @@ function ChatInput({ onSubmit, disabled }: { onSubmit: (msg: string) => void; di
       aria-label="법령 검색"
     >
       <Group gap="xs">
-        <input
+        <TextInput
           ref={inputRef}
-          style={{
-            flex: 1,
-            padding: '10px 14px',
-            fontSize: '16px',
-            border: '1px solid var(--mantine-color-gray-4)',
-            borderRadius: 'var(--mantine-radius-md)',
-            outline: 'none',
-          }}
+          flex={1}
           placeholder="어떤 법령을 찾고 계신가요?"
           value={value}
           onChange={(e) => setValue(e.currentTarget.value)}
           disabled={disabled}
+          size="md"
           aria-label="검색어 입력"
           autoFocus
         />
-        <button
+        <ActionIcon
           type="submit"
+          size="input-md"
+          variant="filled"
           disabled={disabled || !value.trim()}
           aria-label="검색"
-          style={{
-            padding: '10px 16px',
-            fontSize: '16px',
-            border: 'none',
-            borderRadius: 'var(--mantine-radius-md)',
-            backgroundColor: 'var(--mantine-color-blue-6)',
-            color: 'white',
-            cursor: disabled || !value.trim() ? 'not-allowed' : 'pointer',
-            opacity: disabled || !value.trim() ? 0.5 : 1,
-          }}
         >
           &rarr;
-        </button>
+        </ActionIcon>
       </Group>
     </form>
   );

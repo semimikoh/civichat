@@ -55,7 +55,11 @@ function mapRow(row: z.infer<typeof rpcRowSchema>): LawSearchResult {
 export async function searchLawArticles(options: LawSearchOptions): Promise<LawSearchResponse> {
   const { query, matchCount = 10, matchThreshold = 0.3 } = options;
 
-  const [queryEmbedding] = await embedTexts([query]);
+  const embeddings = await embedTexts([query]);
+  if (embeddings.length === 0) {
+    throw new Error('임베딩 생성 실패: 빈 결과');
+  }
+  const [queryEmbedding] = embeddings;
   const supabase = getSupabaseClient();
 
   const { data, error } = await supabase.rpc('match_law_articles_hybrid', {
