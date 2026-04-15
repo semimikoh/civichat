@@ -21,34 +21,9 @@ interface LawChatMessage {
   loading?: boolean;
 }
 
-const SAMPLE_RESULTS: LawSearchResult[] = [
-  {
-    id: 0,
-    lawTitle: '청년기본법',
-    lawType: '법률',
-    chapter: '제4장 청년의 권익증진을 위한 시책',
-    articleNumber: '제20조',
-    articleTitle: '청년 주거지원',
-    articleContent: '국가와 지방자치단체는 청년의 주거 안정 및 주거 수준 향상을 위한 대책을 마련하여야 한다.',
-    sourceUrl: 'https://www.law.go.kr/법령/청년기본법',
-    similarity: 0.56,
-  },
-  {
-    id: 1,
-    lawTitle: '장애인고용촉진 및 직업재활법',
-    lawType: '법률',
-    chapter: '제3장 장애인 고용 의무 및 부담금',
-    articleNumber: '제27조',
-    articleTitle: '국가와 지방자치단체의 장애인 고용 의무',
-    articleContent: '① 국가와 지방자치단체의 장은 장애인을 소속 공무원 정원에 대하여 다음 각 호의 구분에 해당하는 비율 이상 고용하여야 한다.\n1. 2021년 1월 1일부터 2021년 12월 31일까지: 1천분의 34\n2. 2022년 1월 1일부터 2023년 12월 31일까지: 1천분의 36\n3. 2024년 이후: 1천분의 38\n② 국가와 지방자치단체의 각 시험 실시 기관의 장은 신규채용시험을 실시할 때 장애인이 제1항 각 호의 비율 이상 채용하도록 하여야 한다.',
-    sourceUrl: 'https://www.law.go.kr/법령/장애인고용촉진및직업재활법',
-    similarity: 0.65,
-  },
-];
-
 function EmptyState() {
   return (
-    <Stack flex={1} gap="md" justify="center">
+    <Center flex={1}>
       <Stack align="center" gap="xs">
         <Title order={3} c="dimmed">CiviChat</Title>
         <Text size="sm" c="dimmed" ta="center">
@@ -60,11 +35,7 @@ function EmptyState() {
           <Text size="xs" c="dimmed">&quot;아동학대 처벌 규정&quot;</Text>
         </Stack>
       </Stack>
-      <Box>
-        <Text size="xs" c="dimmed" mb="xs">검색 결과 예시</Text>
-        <LawArticleList results={SAMPLE_RESULTS} />
-      </Box>
-    </Stack>
+    </Center>
   );
 }
 
