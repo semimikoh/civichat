@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ActionIcon, Box, Button, Container, Stack, Group, TextInput, Title, Text, Center, Loader, Paper } from '@mantine/core';
 import Markdown from 'react-markdown';
 import { LawArticleList } from '@/components/legal/LawArticleCard';
@@ -79,6 +79,10 @@ function AssistantMessage({ msg }: { msg: LawChatMessage }) {
 function ChatInput({ onSubmit, disabled }: { onSubmit: (msg: string) => void; disabled?: boolean }) {
   const [value, setValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!disabled) inputRef.current?.focus();
+  }, [disabled]);
 
   const handleSubmit = () => {
     const trimmed = value.trim();

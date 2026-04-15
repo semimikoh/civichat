@@ -1,7 +1,7 @@
 'use client';
 
 import { TextInput, ActionIcon, Group } from '@mantine/core';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 interface ChatInputProps {
   onSubmit: (message: string) => void;
@@ -11,6 +11,10 @@ interface ChatInputProps {
 export function ChatInput({ onSubmit, disabled }: ChatInputProps) {
   const [value, setValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!disabled) inputRef.current?.focus();
+  }, [disabled]);
 
   const handleSubmit = () => {
     const trimmed = value.trim();
