@@ -51,4 +51,5 @@ next-env.d.ts
 # auto-generated
 AGENTS.md
 CLAUDE.md
-/docs/
+/docs/*
+!/docs/screenshots/

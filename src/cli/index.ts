@@ -7,6 +7,7 @@ import { searchCommand } from '@/cli/commands/search';
 import { legalFetchCommand } from '@/cli/commands/legal-fetch';
 import { legalEmbedCommand } from '@/cli/commands/legal-embed';
 import { legalSearchCommand } from '@/cli/commands/legal-search';
+import { evalCommand } from '@/cli/commands/eval';
 
 const program = new Command();
 
@@ -28,5 +29,6 @@ program.addCommand(searchCommand);
 program.addCommand(legalFetchCommand);
 program.addCommand(legalEmbedCommand);
 program.addCommand(legalSearchCommand);
+program.addCommand(evalCommand);
 
 program.parse();
