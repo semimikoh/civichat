@@ -30,9 +30,9 @@ function EmptyState() {
           궁금한 법령을 검색해보세요
         </Text>
         <Stack gap={4} mt="sm">
-          <Text size="xs" c="dimmed">&quot;장애인 고용 의무&quot;</Text>
-          <Text size="xs" c="dimmed">&quot;청년 주거 지원 법령&quot;</Text>
-          <Text size="xs" c="dimmed">&quot;아동학대 처벌 규정&quot;</Text>
+          <Text size="xs" c="dimmed">구체적 질문: &quot;장애인 의무 고용 비율이 몇 퍼센트야?&quot;</Text>
+          <Text size="xs" c="dimmed">키워드 검색: &quot;육아휴직 급여 지급 기준&quot;</Text>
+          <Text size="xs" c="dimmed">법령명 검색: &quot;청년기본법&quot;</Text>
         </Stack>
       </Stack>
     </Center>
