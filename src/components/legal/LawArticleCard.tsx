@@ -43,7 +43,7 @@ export function LawArticleList({ results }: LawArticleListProps) {
               <Box
                 p="sm"
                 style={{
-                  backgroundColor: 'var(--mantine-color-gray-0)',
+                  backgroundColor: 'var(--mantine-color-default-hover)',
                   borderRadius: 'var(--mantine-radius-sm)',
                   borderLeft: '3px solid var(--mantine-color-blue-4)',
                 }}

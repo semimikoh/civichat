@@ -70,7 +70,7 @@ export function ChatContainer() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, history }),
-        signal: controller.signal,
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(60000)]),
       });
 
       if (!res.ok) {
@@ -184,7 +184,7 @@ export function ChatContainer() {
                 bottom={0}
                 role="status"
                 aria-label="검색 중"
-                style={{ backgroundColor: 'rgba(255,255,255,0.6)', zIndex: 10 }}
+                style={{ backgroundColor: 'var(--mantine-color-body)', opacity: 0.6, zIndex: 10 }}
               >
                 <Loader size="lg" />
               </Center>

@@ -30,11 +30,20 @@ export async function POST(request: Request) {
 
   const { query, count, history } = parsed.data;
 
-  const response = await searchBenefits({
-    query,
-    history: history as ConversationMessage[],
-    matchCount: count,
-  });
+  let response;
+  try {
+    response = await searchBenefits({
+      query,
+      history: history as ConversationMessage[],
+      matchCount: count,
+    });
+  } catch (err) {
+    console.error('복지 검색 실패:', err);
+    return Response.json(
+      { error: '검색 중 오류가 발생했습니다.' },
+      { status: 500 },
+    );
+  }
 
   if (response.type === 'question') {
     return Response.json(response);

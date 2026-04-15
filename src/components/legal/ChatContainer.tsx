@@ -196,7 +196,7 @@ export function ChatContainer() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, count: 10 }),
-        signal: controller.signal,
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(60000)]),
       });
 
       if (!res.ok) throw new Error(`서버 오류 (${res.status})`);
@@ -345,7 +345,7 @@ export function ChatContainer() {
                         <Paper
                           p="sm"
                           radius="lg"
-                          bg={isUser ? 'blue.6' : 'gray.0'}
+                          bg={isUser ? 'blue.6' : 'var(--mantine-color-default)'}
                           style={{
                             maxWidth: isUser
                               ? `${USER_BUBBLE_WIDTH_RATIO * 100}%`
@@ -372,7 +372,7 @@ export function ChatContainer() {
                 top={0} left={0} right={0} bottom={0}
                 role="status"
                 aria-label="검색 중"
-                style={{ backgroundColor: 'rgba(255,255,255,0.6)', zIndex: 10 }}
+                style={{ backgroundColor: 'var(--mantine-color-body)', opacity: 0.6, zIndex: 10 }}
               >
                 <Loader size="lg" />
               </Center>
