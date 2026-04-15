@@ -35,11 +35,10 @@ CiviChat은 검색창 대신 대화형 인터페이스를 통해
 
 ### Screenshots
 
-![복지 검색 빈 화면](docs/screenshots/benefit-empty.png)
-
-<!-- 추가 스크린샷/GIF -->
-<!-- ![복지 검색 결과](docs/screenshots/benefit-search.gif) -->
-<!-- ![법령 검색](docs/screenshots/legal-search.gif) -->
+<p>
+  <img src="docs/screenshots/benefit-search.gif" alt="복지 검색" width="360" />
+  <img src="docs/screenshots/legal-search.gif" alt="법령 검색" width="360" />
+</p>
 
 ---
 
