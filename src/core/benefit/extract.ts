@@ -34,10 +34,27 @@ function extractAge(text: string): number | null {
   const decade = text.match(/(\d)0\s*대/);
   if (decade) return parseInt(decade[1], 10) * 10 + 5;
 
-  // "청년" → 26, "중장년" → 50
+  // "청년" → 26
   if (/청년/.test(text)) return 26;
 
   return null;
+}
+
+/** 나이를 사용자 입력 형태에 맞게 표시 (30대 입력 → "30대", 26살 입력 → "26세") */
+export function formatAgeLabel(age: number, userQuery: string): string {
+  if (/(\d)0\s*대/.test(userQuery)) return `${Math.floor(age / 10) * 10}대`;
+  if (/청년/.test(userQuery)) return '청년';
+  return `${age}세`;
+}
+
+/** 추출된 조건을 표시용 텍스트로 조립 */
+export function formatConditionText(conditions: ExtractedConditions, userQuery: string): string {
+  const parts: string[] = [];
+  if (conditions.age !== null) parts.push(formatAgeLabel(conditions.age, userQuery));
+  if (conditions.gender) parts.push(conditions.gender);
+  if (conditions.occupation) parts.push(conditions.occupation);
+  if (conditions.region) parts.push(conditions.region);
+  return parts.join(' / ');
 }
 
 // --- 성별 추출 ---
@@ -155,18 +172,18 @@ function extractRegion(text: string): { region: string | null; regionProvince: s
     }
   }
 
-  // 2. 시군구 직접 매칭 (전국)
+  // 2. 광역시도 매칭 (시군구보다 먼저 — "광주"가 경기도 광주시가 아닌 광주광역시로 매칭되도록)
+  for (const [key, province] of Object.entries(PROVINCE_MAP)) {
+    if (text.includes(key)) {
+      return { region: province, regionProvince: province };
+    }
+  }
+
+  // 3. 시군구 직접 매칭 (전국)
   for (const [city, province] of CITY_TO_PROVINCE) {
     const short = city.replace(/시$|군$/, '');
     if (text.includes(city) || text.includes(short)) {
       return { region: city, regionProvince: province };
-    }
-  }
-
-  // 3. 광역시도 매칭
-  for (const [key, province] of Object.entries(PROVINCE_MAP)) {
-    if (text.includes(key)) {
-      return { region: province, regionProvince: province };
     }
   }
 
@@ -295,7 +312,7 @@ export function analyzeQuery(
 
   if (region === null) {
     const knownParts: string[] = [];
-    if (age !== null) knownParts.push(`${age}세`);
+    if (age !== null) knownParts.push(formatAgeLabel(age, userQuery));
     if (occupation) knownParts.push(occupation);
     if (specificKeywords.length > 0) knownParts.push(specificKeywords.join(', '));
 
@@ -318,6 +335,14 @@ export function analyzeQuery(
 }
 
 function emptyConditions(): ExtractedConditions {
-  return { age: null, gender: null, occupation: null, region: null, regionProvince: null, keywords: [], searchQuery: '' };
+  return {
+    age: null,
+    gender: null,
+    occupation: null,
+    region: null,
+    regionProvince: null,
+    keywords: [],
+    searchQuery: '',
+  };
 }
 

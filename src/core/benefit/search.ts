@@ -3,6 +3,7 @@ import { getSupabaseClient } from '@/core/db/supabase';
 import { embedTexts } from '@/core/embeddings/openai';
 import {
   analyzeQuery,
+  formatConditionText,
   type AnalysisResult,
   type ExtractedConditions,
   type ConversationMessage,
@@ -266,12 +267,7 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
   results = applyNameBoost(results, query);
 
   const finalResults = results.slice(0, matchCount);
-  const condParts: string[] = [];
-  if (conditions.age) condParts.push(`${conditions.age}세`);
-  if (conditions.gender) condParts.push(conditions.gender);
-  if (conditions.occupation) condParts.push(conditions.occupation);
-  if (conditions.region) condParts.push(conditions.region);
-  const condText = condParts.join(' / ');
+  const condText = formatConditionText(conditions, query);
 
   const message = finalResults.length > 0
     ? `${condText ? condText + ' 기준으로 ' : ''}${finalResults.length}건의 혜택을 찾았습니다.`
