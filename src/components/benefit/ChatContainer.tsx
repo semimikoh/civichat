@@ -25,11 +25,12 @@ function EmptyState() {
   );
 }
 
-export function BenefitChatContainer() {
+export function ChatContainer() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   /** 전체 입력 비활성화 (fetch 진행 중) */
   const [isInputDisabled, setIsInputDisabled] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
 
   const updateLastAssistant = useCallback((updater: (msg: ChatMessage) => ChatMessage) => {
     setMessages((prev) => {
@@ -43,6 +44,8 @@ export function BenefitChatContainer() {
   }, []);
 
   const handleSubmit = async (query: string) => {
+    readerRef.current?.cancel();
+    readerRef.current = null;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -63,7 +66,7 @@ export function BenefitChatContainer() {
             : m.content,
         }));
 
-      const res = await fetch('/api/search', {
+      const res = await fetch('/api/benefit/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, history }),
@@ -89,6 +92,7 @@ export function BenefitChatContainer() {
       // SSE 스트리밍 (검색 결과 + 요약)
       const reader = res.body?.getReader();
       if (!reader) throw new Error('스트림을 읽을 수 없습니다.');
+      readerRef.current = reader;
 
       const decoder = new TextDecoder();
       let buffer = '';
@@ -130,9 +134,10 @@ export function BenefitChatContainer() {
           }
 
           if (event.type === SSE_EVENT.RESULTS) {
-            // 요약 끝나고 결과 카드 추가
+            setIsInputDisabled(false);
             updateLastAssistant((msg) => ({
               ...msg,
+              loading: false,
               content: event.message ?? '',
               results: event.results,
             }));
@@ -147,6 +152,7 @@ export function BenefitChatContainer() {
         { role: 'assistant', content: `오류가 발생했습니다: ${errMsg}` },
       ]);
     } finally {
+      readerRef.current = null;
       setIsInputDisabled(false);
     }
   };

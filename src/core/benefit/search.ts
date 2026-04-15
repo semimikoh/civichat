@@ -6,9 +6,9 @@ import {
   type AnalysisResult,
   type ExtractedConditions,
   type ConversationMessage,
-} from '@/core/search/extract';
-export { summarizeResults } from '@/core/search/summarize';
-export type { ConversationMessage } from '@/core/search/extract';
+} from '@/core/benefit/extract';
+export { summarizeResults } from '@/core/benefit/summarize';
+export type { ConversationMessage } from '@/core/benefit/extract';
 
 const rpcRowSchema = z.object({
   service_id: z.string(),

@@ -2,7 +2,7 @@
 
 import { Center, Container, Group, Stack, Text, Title } from '@mantine/core';
 
-export function LegalChatContainer() {
+export function ChatContainer() {
   return (
     <Container size="xs" h="100%" py="md">
       <Stack h="100%" gap="md">

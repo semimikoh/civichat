@@ -1,4 +1,4 @@
-import type { SearchResult } from '@/core/search/benefit';
+import type { SearchResult } from '@/core/benefit/search';
 import type { SSEEventType } from '@/core/types/sse';
 
 export interface ChatMessage {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { analyzeQuery } from '@/core/search/extract';
+import { analyzeQuery } from '@/core/benefit/extract';
 
 describe('analyzeQuery', () => {
   describe('나이 추출', () => {
@@ -127,14 +127,20 @@ describe('analyzeQuery', () => {
   });
 
   describe('검색/질문 판단', () => {
-    it('정보 충분 → search', () => {
-      const r = analyzeQuery('26살 무직 지원금', []);
+    it('정보 충분 + 지역 있음 → search', () => {
+      const r = analyzeQuery('서울 26살 무직 지원금', []);
       expect(r.action).toBe('search');
     });
 
-    it('구체적 주제 → search', () => {
-      const r = analyzeQuery('임산부 혜택', []);
+    it('구체적 주제 + 지역 있음 → search', () => {
+      const r = analyzeQuery('서울 임산부 혜택', []);
       expect(r.action).toBe('search');
+    });
+
+    it('정보 충분하지만 지역 없음 → ask (지역 질문)', () => {
+      const r = analyzeQuery('26살 무직 지원금', []);
+      expect(r.action).toBe('ask');
+      expect(r.followUpQuestion).toContain('지역');
     });
 
     it('막연한 요청 → ask', () => {

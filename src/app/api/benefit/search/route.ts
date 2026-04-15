@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { searchBenefits, type ConversationMessage } from '@/core/search/benefit';
-import { summarizeResultsStream } from '@/core/search/summarize';
+import { searchBenefits, type ConversationMessage } from '@/core/benefit/search';
+import { summarizeResultsStream } from '@/core/benefit/summarize';
 import { SSE_EVENT } from '@/core/types/sse';
 
 const searchSchema = z.object({

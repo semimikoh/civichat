@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Stack, Text } from '@mantine/core';
 import { BenefitCard } from '@/components/benefit/BenefitCard';
-import type { SearchResult } from '@/core/search/benefit';
+import type { SearchResult } from '@/core/benefit/search';
 
 interface StaggeredResultsProps {
   results: SearchResult[];

@@ -1,4 +1,4 @@
-import type { SearchResult } from '@/core/search/benefit';
+import type { SearchResult } from '@/core/benefit/search';
 import { getOpenAIClient } from '@/core/embeddings/openai';
 
 const SYSTEM_PROMPT = `너는 정부 복지 혜택 검색 결과를 요약해주는 도우미야.

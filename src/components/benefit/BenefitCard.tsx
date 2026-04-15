@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, Text, Badge, Group, Stack, ActionIcon, Divider } from '@mantine/core';
-import type { SearchResult } from '@/core/search/benefit';
+import type { SearchResult } from '@/core/benefit/search';
 
 interface BenefitCardProps {
   result: SearchResult;

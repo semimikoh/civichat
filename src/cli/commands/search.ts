@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { searchBenefits } from '@/core/search/benefit';
+import { searchBenefits } from '@/core/benefit/search';
 
 export const searchCommand = new Command('search')
   .description('복지 서비스 검색')
