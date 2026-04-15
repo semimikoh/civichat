@@ -1,10 +1,27 @@
 'use client';
 
-import { Accordion, Text, Badge, Group, Stack, ActionIcon, Box } from '@mantine/core';
+import { type ReactNode } from 'react';
+import { Accordion, Text, Badge, Group, Stack, ActionIcon, Box, Mark } from '@mantine/core';
 import type { LawSearchResult } from '@/core/legal/search';
 
 interface LawArticleListProps {
   results: LawSearchResult[];
+  query?: string;
+}
+
+/** 텍스트에서 쿼리 단어를 <Mark>로 감싸 하이라이트한다. */
+function highlightText(text: string, query?: string): ReactNode {
+  if (!query || !query.trim()) return text;
+
+  const words = query.split(/\s+/).filter((w) => w.length >= 2);
+  if (words.length === 0) return text;
+
+  const pattern = new RegExp(`(${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+  const parts = text.split(pattern);
+
+  return parts.map((part, i) =>
+    pattern.test(part) ? <Mark key={i}>{part}</Mark> : part,
+  );
 }
 
 function LinkIcon() {
@@ -17,7 +34,7 @@ function LinkIcon() {
   );
 }
 
-export function LawArticleList({ results }: LawArticleListProps) {
+export function LawArticleList({ results, query }: LawArticleListProps) {
   return (
     <Accordion variant="separated" radius="md">
       {results.map((r, i) => (
@@ -49,7 +66,7 @@ export function LawArticleList({ results }: LawArticleListProps) {
                 }}
               >
                 <Text size="sm" style={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>
-                  {r.articleContent}
+                  {highlightText(r.articleContent, query)}
                 </Text>
               </Box>
               {r.sourceUrl && (

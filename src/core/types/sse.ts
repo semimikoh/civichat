@@ -15,4 +15,6 @@ export interface SSEEvent<TResults = unknown> {
   results?: TResults[];
   text?: string;
   error?: string;
+  /** 복지 검색: 추출된 조건 텍스트 (예: "26세 / 서울 / 구직자") */
+  condText?: string;
 }

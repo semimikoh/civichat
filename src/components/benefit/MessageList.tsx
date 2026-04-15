@@ -43,7 +43,7 @@ function AssistantMessage({ msg }: { msg: ChatMessage }) {
         </Text>
       )}
       {hasResults && summaryDone && (
-        <StaggeredResults results={msg.results!} />
+        <StaggeredResults results={msg.results!} condText={msg.condText} />
       )}
     </>
   );

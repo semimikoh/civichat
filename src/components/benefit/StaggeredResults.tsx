@@ -7,6 +7,7 @@ import type { SearchResult } from '@/core/benefit/search';
 
 interface StaggeredResultsProps {
   results: SearchResult[];
+  condText?: string;
 }
 
 interface RegionGroup {
@@ -31,7 +32,7 @@ function groupByRegion(results: SearchResult[]): RegionGroup[] {
   return Array.from(groups, ([region, items]) => ({ region, results: items }));
 }
 
-function StaggeredResultsInner({ results }: StaggeredResultsProps) {
+function StaggeredResultsInner({ results, condText }: StaggeredResultsProps) {
   const [visibleCount, setVisibleCount] = useState(1);
   const regionGroups = useMemo(() => groupByRegion(results), [results]);
 
@@ -73,7 +74,7 @@ function StaggeredResultsInner({ results }: StaggeredResultsProps) {
             key={item.key}
             style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
           >
-            <BenefitCard result={item.result} index={item.globalIndex} />
+            <BenefitCard result={item.result} index={item.globalIndex} condText={condText} />
           </div>
         );
       })}
@@ -81,7 +82,7 @@ function StaggeredResultsInner({ results }: StaggeredResultsProps) {
   );
 }
 
-export function StaggeredResults({ results }: StaggeredResultsProps) {
+export function StaggeredResults({ results, condText }: StaggeredResultsProps) {
   const key = useMemo(() => results.map((r) => r.serviceId).join(','), [results]);
-  return <StaggeredResultsInner key={key} results={results} />;
+  return <StaggeredResultsInner key={key} results={results} condText={condText} />;
 }

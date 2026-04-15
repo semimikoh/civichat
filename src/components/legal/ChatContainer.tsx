@@ -16,6 +16,8 @@ interface LawChatMessage {
   content: string;
   summary?: string;
   results?: LawSearchResult[];
+  /** 원본 검색어 (하이라이트용) */
+  query?: string;
   /** 가상 스크롤 높이 계산용 */
   extraHeight?: number;
   loading?: boolean;
@@ -68,7 +70,7 @@ function AssistantMessage({ msg }: { msg: LawChatMessage }) {
         </Text>
       )}
       {hasResults && summaryDone && (
-        <LawArticleList results={msg.results!} />
+        <LawArticleList results={msg.results!} query={msg.query} />
       )}
     </>
   );
@@ -188,6 +190,7 @@ export function ChatContainer() {
                 loading: false,
                 content: message,
                 results,
+                query,
                 extraHeight: results.length * (LAW_ACCORDION_COLLAPSED_HEIGHT + CARD_GAP),
               };
             }

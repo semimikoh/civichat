@@ -108,13 +108,14 @@ export function ChatContainer() {
             return updated;
           });
         },
-        onResults(message, results) {
+        onResults(message, results, condText) {
           setIsInputDisabled(false);
           updateLastAssistant((msg) => ({
             ...msg,
             loading: false,
             content: message,
             results,
+            condText: condText ?? '',
             extraHeight: results.length * (BENEFIT_CARD_HEIGHT + CARD_GAP),
           }));
         },

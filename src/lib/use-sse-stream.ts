@@ -4,7 +4,7 @@ import { SSE_EVENT, type SSEEvent } from '@/core/types/sse';
 
 export interface SSEStreamCallbacks<TResults> {
   onSummaryChunk: (text: string, accumulated: string) => void;
-  onResults: (message: string, results: TResults[]) => void;
+  onResults: (message: string, results: TResults[], condText?: string) => void;
   onError: (message: string) => void;
 }
 
@@ -44,7 +44,7 @@ export async function parseSSEStream<TResults>(
       }
 
       if (event.type === SSE_EVENT.RESULTS) {
-        callbacks.onResults(event.message ?? '', (event.results ?? []) as TResults[]);
+        callbacks.onResults(event.message ?? '', (event.results ?? []) as TResults[], event.condText);
       }
     }
   }

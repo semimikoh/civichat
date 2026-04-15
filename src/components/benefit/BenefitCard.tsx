@@ -6,6 +6,7 @@ import type { SearchResult } from '@/core/benefit/search';
 interface BenefitCardProps {
   result: SearchResult;
   index: number;
+  condText?: string;
 }
 
 function LinkIcon() {
@@ -18,8 +19,9 @@ function LinkIcon() {
   );
 }
 
-export function BenefitCard({ result, index }: BenefitCardProps) {
+export function BenefitCard({ result, index, condText }: BenefitCardProps) {
   const linkUrl = result.detailUrl || result.onlineApplicationUrl;
+  const matchTags = condText ? condText.split(' / ').filter(Boolean) : [];
 
   return (
     <Card withBorder padding="md" radius="md" role="article" aria-label={result.serviceName}>
@@ -55,6 +57,17 @@ export function BenefitCard({ result, index }: BenefitCardProps) {
               {type.trim()}
             </Badge>
           ))}
+        </Group>
+      )}
+
+      {matchTags.length > 0 && (
+        <Group gap={4} mb="xs">
+          {matchTags.map((tag) => (
+            <Badge key={tag} size="xs" variant="light" color="teal">
+              {tag}
+            </Badge>
+          ))}
+          <Text size="xs" c="dimmed">조건 매칭</Text>
         </Group>
       )}
 

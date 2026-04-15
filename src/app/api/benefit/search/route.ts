@@ -81,7 +81,7 @@ export async function POST(request: Request) {
         }
       }
 
-      enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.RESULTS, message: response.message, results: response.results })}\n\n`);
+      enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.RESULTS, message: response.message, results: response.results, condText: response.condText })}\n\n`);
 
       if (!cancelled) controller.close();
     },

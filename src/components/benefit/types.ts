@@ -5,6 +5,8 @@ export interface ChatMessage {
   content: string;
   summary?: string;
   results?: SearchResult[];
+  /** 추출된 조건 텍스트 (예: "26세 / 서울 / 구직자") */
+  condText?: string;
   /** 가상 스크롤 높이 계산용 */
   extraHeight?: number;
   /** 스트리밍 중 자리 표시자 (MessageList에서 필터링됨) */
