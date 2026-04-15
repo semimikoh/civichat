@@ -24,15 +24,17 @@ interface UseTypewriterOptions {
  */
 export function useTypewriter(text: string, options: UseTypewriterOptions = {}) {
   const { interval = 40, enabled = true } = options;
-  const [visibleLength, setVisibleLength] = useState(enabled ? 0 : text.length);
+  const [visibleLength, setVisibleLength] = useState(() => enabled ? 0 : text.length);
   const prevTextRef = useRef('');
   const indicesRef = useRef<number[]>([]);
   const stepRef = useRef(0);
 
+  // 텍스트 변경 감지 + 인덱스 갱신 + 타이머 통합
   useEffect(() => {
     if (!enabled) {
-      setVisibleLength(text.length);
-      return;
+      // flushSync 대신 타이머로 다음 틱에 반영
+      const id = setTimeout(() => setVisibleLength(text.length), 0);
+      return () => clearTimeout(id);
     }
 
     // 텍스트가 이전보다 길어진 경우 (스트리밍 중 추가)
@@ -42,19 +44,11 @@ export function useTypewriter(text: string, options: UseTypewriterOptions = {}) 
       // 텍스트가 완전히 바뀐 경우 리셋
       indicesRef.current = buildWordEndIndices(text);
       stepRef.current = 0;
-      setVisibleLength(0);
     }
-
     prevTextRef.current = text;
-  }, [text, enabled]);
-
-  useEffect(() => {
-    if (!enabled) return;
 
     const indices = indicesRef.current;
     if (indices.length === 0) return;
-
-    // 현재 step이 이미 끝에 도달했으면 종료
     if (stepRef.current >= indices.length) return;
 
     const timer = setInterval(() => {
@@ -70,8 +64,8 @@ export function useTypewriter(text: string, options: UseTypewriterOptions = {}) 
     return () => clearInterval(timer);
   }, [text, interval, enabled]);
 
-  const visibleText = text.slice(0, visibleLength);
-  const isDone = visibleLength >= text.length;
+  const visibleText = enabled ? text.slice(0, visibleLength) : text;
+  const isDone = !enabled || visibleLength >= text.length;
 
   return { visibleText, isDone };
 }

@@ -14,7 +14,10 @@ interface MessageLike {
   role: 'user' | 'assistant';
   content: string;
   summary?: string;
-  results?: { serviceId: string }[];
+  /** 복지 검색 결과 (길이만 사용) */
+  results?: unknown[];
+  /** 법령 검색 결과 (길이만 사용) */
+  lawResults?: unknown[];
 }
 
 // --- 타입 ---
@@ -185,6 +188,9 @@ const DEFAULT_LINE_HEIGHT = 1.55;
 export const BENEFIT_CARD_HEIGHT = 200;
 export const CARD_GAP = 8;
 
+/** 법령 아코디언 접힌 상태 추정 높이 — LawArticleCard.tsx의 Accordion.Control과 일치 */
+export const LAW_ACCORDION_COLLAPSED_HEIGHT = 80;
+
 /** 말풍선 최대 너비 비율 — MessageList.tsx의 maxWidth와 일치시킬 것 */
 export const USER_BUBBLE_WIDTH_RATIO = 0.75;
 export const ASSISTANT_BUBBLE_WIDTH_RATIO = 0.9;
@@ -223,6 +229,11 @@ export function estimateMessageHeight(
   // BenefitCard
   if (message.results && message.results.length > 0) {
     height += message.results.length * (BENEFIT_CARD_HEIGHT + CARD_GAP);
+  }
+
+  // 법령 아코디언 (접힌 상태 기준)
+  if (message.lawResults && message.lawResults.length > 0) {
+    height += message.lawResults.length * (LAW_ACCORDION_COLLAPSED_HEIGHT + CARD_GAP);
   }
 
   return Math.max(height, 40);

@@ -20,7 +20,7 @@ function AssistantMessage({ msg }: { msg: ChatMessage }) {
     interval: 40,
     enabled: Boolean(msg.summary),
   });
-  const { visibleText: visibleContent, isDone: contentDone } = useTypewriter(
+  const { visibleText: visibleContent } = useTypewriter(
     !msg.summary ? msg.content : '',
     { interval: 40, enabled: Boolean(!msg.summary && msg.content) },
   );
