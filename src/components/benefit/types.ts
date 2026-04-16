@@ -11,4 +11,6 @@ export interface ChatMessage {
   extraHeight?: number;
   /** 스트리밍 중 자리 표시자 (MessageList에서 필터링됨) */
   loading?: boolean;
+  /** 타이프라이터/스태거 애니메이션 완료 여부 (재마운트 시 스킵용) */
+  animated?: boolean;
 }

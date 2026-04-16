@@ -224,8 +224,25 @@ export function ChatContainer() {
 
   return (
     <Container size="xs" h="100%" py="md" role="main" aria-label="CiviChat 법령 검색" aria-busy={isInputDisabled}>
-      <a href="#legal-chat-input" className="sr-only" style={{
+      <a href="#legal-chat-input" style={{
         position: 'absolute', left: '-9999px', top: 'auto', width: '1px', height: '1px', overflow: 'hidden',
+        zIndex: 100,
+      }} onFocus={(e) => {
+        e.currentTarget.style.left = '16px';
+        e.currentTarget.style.top = '16px';
+        e.currentTarget.style.width = 'auto';
+        e.currentTarget.style.height = 'auto';
+        e.currentTarget.style.padding = '8px 16px';
+        e.currentTarget.style.background = 'var(--mantine-color-blue-6)';
+        e.currentTarget.style.color = '#fff';
+        e.currentTarget.style.borderRadius = '4px';
+        e.currentTarget.style.fontSize = '14px';
+        e.currentTarget.style.textDecoration = 'none';
+      }} onBlur={(e) => {
+        e.currentTarget.style.left = '-9999px';
+        e.currentTarget.style.width = '1px';
+        e.currentTarget.style.height = '1px';
+        e.currentTarget.style.padding = '0';
       }}>검색 입력으로 건너뛰기</a>
       <Stack h="100%" gap="md">
         <header>

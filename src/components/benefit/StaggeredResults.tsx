@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Stack, Text, Card as MantineCard } from '@mantine/core';
 import { BenefitCard } from '@/components/benefit/BenefitCard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -9,6 +9,8 @@ import type { SearchResult } from '@/core/benefit/search';
 interface StaggeredResultsProps {
   results: SearchResult[];
   condText?: string;
+  skipAnimation?: boolean;
+  onDone?: () => void;
 }
 
 interface RegionGroup {
@@ -33,9 +35,10 @@ function groupByRegion(results: SearchResult[]): RegionGroup[] {
   return Array.from(groups, ([region, items]) => ({ region, results: items }));
 }
 
-function StaggeredResultsInner({ results, condText }: StaggeredResultsProps) {
-  const [visibleCount, setVisibleCount] = useState(1);
+function StaggeredResultsInner({ results, condText, skipAnimation, onDone }: StaggeredResultsProps) {
+  const [visibleCount, setVisibleCount] = useState(skipAnimation ? Infinity : 1);
   const regionGroups = useMemo(() => groupByRegion(results), [results]);
+  const doneCalledRef = useRef(false);
 
   const flatItems = useMemo(() => {
     const items: { type: 'header'; region: string; key: string }[] | { type: 'card'; result: SearchResult; globalIndex: number; key: string }[] = [];
@@ -51,14 +54,20 @@ function StaggeredResultsInner({ results, condText }: StaggeredResultsProps) {
   }, [regionGroups]);
 
   useEffect(() => {
-    if (visibleCount >= flatItems.length) return;
+    if (visibleCount >= flatItems.length) {
+      if (!doneCalledRef.current) {
+        doneCalledRef.current = true;
+        onDone?.();
+      }
+      return;
+    }
 
     const timer = setTimeout(() => {
       setVisibleCount((c) => c + 1);
     }, 120);
 
     return () => clearTimeout(timer);
-  }, [visibleCount, flatItems.length]);
+  }, [visibleCount, flatItems.length, onDone]);
 
   return (
     <Stack gap="sm">
@@ -91,7 +100,7 @@ function StaggeredResultsInner({ results, condText }: StaggeredResultsProps) {
   );
 }
 
-export function StaggeredResults({ results, condText }: StaggeredResultsProps) {
+export function StaggeredResults({ results, condText, skipAnimation, onDone }: StaggeredResultsProps) {
   const key = useMemo(() => results.map((r) => r.serviceId).join(','), [results]);
-  return <StaggeredResultsInner key={key} results={results} condText={condText} />;
+  return <StaggeredResultsInner key={key} results={results} condText={condText} skipAnimation={skipAnimation} onDone={onDone} />;
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useCallback } from 'react';
 import { Paper, Text, Box } from '@mantine/core';
 import Markdown from 'react-markdown';
 import { useMessageVirtualizer } from '@/lib/text-layout/use-message-height';
@@ -12,18 +13,46 @@ export type { ChatMessage } from '@/components/benefit/types';
 
 interface MessageListProps {
   messages: ChatMessage[];
+  onMessageAnimated?: (index: number) => void;
 }
 
-function AssistantMessage({ msg }: { msg: ChatMessage }) {
+interface AssistantMessageProps {
+  msg: ChatMessage;
+  onAnimationDone?: () => void;
+}
+
+function AssistantMessage({ msg, onAnimationDone }: AssistantMessageProps) {
   const hasResults = msg.results && msg.results.length > 0;
+  const skipAnimation = Boolean(msg.animated);
+
   const { visibleText: visibleSummary, isDone: summaryDone } = useTypewriter(msg.summary ?? '', {
     interval: 40,
-    enabled: Boolean(msg.summary),
+    enabled: Boolean(msg.summary) && !skipAnimation,
   });
-  const { visibleText: visibleContent } = useTypewriter(
+  const { visibleText: visibleContent, isDone: contentDone } = useTypewriter(
     !msg.summary ? msg.content : '',
-    { interval: 40, enabled: Boolean(!msg.summary && msg.content) },
+    { interval: 40, enabled: Boolean(!msg.summary && msg.content) && !skipAnimation },
   );
+
+  const calledRef = useRef(false);
+
+  useEffect(() => {
+    if (calledRef.current || skipAnimation) return;
+    const textDone = msg.summary ? summaryDone : contentDone;
+    if (!textDone) return;
+    // 결과 카드가 없으면 텍스트 완료 시점에 완료
+    if (!hasResults) {
+      calledRef.current = true;
+      onAnimationDone?.();
+    }
+    // 카드가 있으면 StaggeredResults의 onDone에서 처리
+  }, [summaryDone, contentDone, hasResults, skipAnimation, onAnimationDone, msg.summary]);
+
+  const handleStaggerDone = useCallback(() => {
+    if (calledRef.current || skipAnimation) return;
+    calledRef.current = true;
+    onAnimationDone?.();
+  }, [skipAnimation, onAnimationDone]);
 
   return (
     <>
@@ -43,13 +72,18 @@ function AssistantMessage({ msg }: { msg: ChatMessage }) {
         </Text>
       )}
       {hasResults && summaryDone && (
-        <StaggeredResults results={msg.results!} condText={msg.condText} />
+        <StaggeredResults
+          results={msg.results!}
+          condText={msg.condText}
+          skipAnimation={skipAnimation}
+          onDone={handleStaggerDone}
+        />
       )}
     </>
   );
 }
 
-export function MessageList({ messages }: MessageListProps) {
+export function MessageList({ messages, onMessageAnimated }: MessageListProps) {
   const visibleMessages = messages.filter((m) => !m.loading);
   const { virtualizer, scrollRef } = useMessageVirtualizer(visibleMessages);
 
@@ -72,6 +106,7 @@ export function MessageList({ messages }: MessageListProps) {
           const msg = visibleMessages[virtualItem.index];
           if (!msg) return null;
           const isUser = msg.role === 'user';
+          const msgIndex = virtualItem.index;
 
           return (
             <div
@@ -108,7 +143,10 @@ export function MessageList({ messages }: MessageListProps) {
                       {msg.content}
                     </Text>
                   ) : (
-                    <AssistantMessage msg={msg} />
+                    <AssistantMessage
+                      msg={msg}
+                      onAnimationDone={() => onMessageAnimated?.(msgIndex)}
+                    />
                   )}
                 </Paper>
               </Box>

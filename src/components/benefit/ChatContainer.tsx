@@ -32,6 +32,8 @@ export function ChatContainer() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   /** 전체 입력 비활성화 (fetch 진행 중) */
   const [isInputDisabled, setIsInputDisabled] = useState(false);
+  /** 마지막 어시스턴트 메시지 애니메이션 진행 중 */
+  const [isAnimating, setIsAnimating] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
 
@@ -44,6 +46,21 @@ export function ChatContainer() {
       }
       return updated;
     });
+  }, []);
+
+  const handleMessageAnimated = useCallback((index: number) => {
+    setMessages((prev) => {
+      const visibleMessages = prev.filter((m) => !m.loading);
+      const msg = visibleMessages[index];
+      if (!msg || msg.animated) return prev;
+      // prev 배열에서 해당 메시지의 실제 인덱스 찾기
+      const realIdx = prev.indexOf(msg);
+      if (realIdx === -1) return prev;
+      const updated = [...prev];
+      updated[realIdx] = { ...updated[realIdx], animated: true };
+      return updated;
+    });
+    setIsAnimating(false);
   }, []);
 
   const handleSubmit = async (query: string) => {
@@ -85,6 +102,7 @@ export function ChatContainer() {
       // JSON 응답 (질문 모드)
       if (contentType.includes('application/json')) {
         const data = await res.json() as SSEEvent<SearchResult>;
+        setIsAnimating(true);
         setMessages((prev) => [
           ...prev.slice(0, -1),
           { role: 'assistant', content: data.message ?? data.error ?? '' },
@@ -111,6 +129,7 @@ export function ChatContainer() {
         },
         onResults(message, results, condText) {
           setIsInputDisabled(false);
+          setIsAnimating(true);
           updateLastAssistant((msg) => ({
             ...msg,
             loading: false,
@@ -139,8 +158,25 @@ export function ChatContainer() {
 
   return (
     <Container size="xs" h="100%" py="md" role="main" aria-label="CiviChat 복지 혜택 검색" aria-busy={isInputDisabled}>
-      <a href="#chat-input" className="sr-only" style={{
+      <a href="#chat-input" style={{
         position: 'absolute', left: '-9999px', top: 'auto', width: '1px', height: '1px', overflow: 'hidden',
+        zIndex: 100,
+      }} onFocus={(e) => {
+        e.currentTarget.style.left = '16px';
+        e.currentTarget.style.top = '16px';
+        e.currentTarget.style.width = 'auto';
+        e.currentTarget.style.height = 'auto';
+        e.currentTarget.style.padding = '8px 16px';
+        e.currentTarget.style.background = 'var(--mantine-color-blue-6)';
+        e.currentTarget.style.color = '#fff';
+        e.currentTarget.style.borderRadius = '4px';
+        e.currentTarget.style.fontSize = '14px';
+        e.currentTarget.style.textDecoration = 'none';
+      }} onBlur={(e) => {
+        e.currentTarget.style.left = '-9999px';
+        e.currentTarget.style.width = '1px';
+        e.currentTarget.style.height = '1px';
+        e.currentTarget.style.padding = '0';
       }}>검색 입력으로 건너뛰기</a>
       <Stack h="100%" gap="md">
         <header>
@@ -154,7 +190,7 @@ export function ChatContainer() {
           <EmptyState />
         ) : (
           <Box flex={1} pos="relative" style={{ overflow: 'hidden' }}>
-            <MessageList messages={messages} />
+            <MessageList messages={messages} onMessageAnimated={handleMessageAnimated} />
             {isInputDisabled && (
               <Center
                 pos="absolute"
@@ -172,18 +208,18 @@ export function ChatContainer() {
           </Box>
         )}
 
-        {!isInputDisabled && messages.some((m) => m.results && m.results.length > 0) && (
+        {!isInputDisabled && !isAnimating && messages.some((m) => m.results && m.results.length > 0) && (
           <Center>
             <Button
               variant="subtle"
               size="xs"
-              onClick={() => { abortRef.current?.abort(); readerRef.current?.cancel(); setMessages([]); setIsInputDisabled(false); }}
+              onClick={() => { abortRef.current?.abort(); readerRef.current?.cancel(); setMessages([]); setIsInputDisabled(false); setIsAnimating(false); }}
             >
               새 대화 하기
             </Button>
           </Center>
         )}
-        <ChatInput onSubmit={handleSubmit} disabled={isInputDisabled} />
+        <ChatInput onSubmit={handleSubmit} disabled={isInputDisabled || isAnimating} />
       </Stack>
     </Container>
   );

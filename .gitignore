@@ -48,6 +48,9 @@ next-env.d.ts
 /data/legalize-kr/
 /data/law-articles.json
 
+# playwright mcp
+.playwright-mcp/
+
 # auto-generated
 AGENTS.md
 CLAUDE.md
