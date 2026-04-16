@@ -1,10 +1,8 @@
 # CiviChat
 
-공공/생활 정보를 사용자의 자연어 질문으로 탐색하고,
-대화형 UI로 응답을 제공하는 AI 서비스입니다.
+정부 복지 혜택 10,919개와 법령 조문 31,066개를 자연어로 검색하는 대화형 AI 서비스입니다.
 
-사용자 질문을 이해하고 필요한 정보를 제공하는 흐름을 구현하며,
-생성형 AI 서비스의 UX를 프론트엔드 관점에서 설계했습니다.
+조건 추출은 LLM 호출 없이 정규식으로 즉시 처리하고, 검색 결과 요약에는 LLM SSE 스트리밍을 적용했습니다. 벡터 검색과 키워드 검색을 RRF로 결합한 하이브리드 검색으로 정확도를 높이고, 스트리밍 응답을 단계별 UI 상태로 분리해 사용자가 응답 시작을 즉시 인지할 수 있도록 설계했습니다.
 
 > 이런 질문을 자연어로 입력하면 맞춤 복지 혜택과 관련 법령을 찾아줍니다.
 
@@ -23,9 +21,7 @@
 
 CiviChat은 검색창 대신 대화형 인터페이스를 통해
 사용자가 자연스럽게 질문하고 필요한 정보를 얻을 수 있도록 기획했습니다.
-
-이는 고객 질의를 이해하고 응답하는 AI 서비스 구조와 유사하며,
-현대오토에버의 생성형 AI 서비스 개발 직무와도 맞닿아 있습니다.
+생성형 AI 응답을 프론트엔드에서 어떻게 수신하고 단계별로 렌더링할지, 검색 결과를 대화 흐름 안에서 어떻게 보여줄지를 설계하는 과정이 이 프로젝트의 핵심입니다.
 
 ---
 
@@ -50,7 +46,7 @@ CiviChat은 검색창 대신 대화형 인터페이스를 통해
 - LLM 요약 SSE 스트리밍 + 어절 단위 타이프라이터
 - 로딩 / 에러 상태 처리 (Error Boundary, 스피너)
 - 검색 결과 카드 순차 애니메이션
-- 가상 스크롤 (DOM 렌더 전 높이 사전 계산)
+- 가상 스크롤 (DOM 렌더 전 Canvas 기반 텍스트 너비 측정 + 높이 사전 계산)
 - 반응형 UI
 - 접근성 (시맨틱 마크업, ARIA, Skip Link)
 
@@ -68,9 +64,9 @@ CiviChat은 검색창 대신 대화형 인터페이스를 통해
 | 벡터 DB    | Supabase (pgvector + HNSW)               | 별도 벡터 DB 인프라 없이 RDB + 벡터 검색 통합    |
 | 임베딩     | OpenAI text-embedding-3-small (1536차원) | 비용 효율 + 한국어 성능                          |
 | LLM 요약   | GPT-4o-mini (SSE 스트리밍)               | 검색 결과를 쉬운 말로 요약                       |
-| 가상화     | @tanstack/react-virtual                  | 메시지 목록 가상 스크롤, DOM 없이 높이 사전 계산 |
+| 가상화     | @tanstack/react-virtual                  | 메시지 목록 가상 스크롤, `estimateSize`에 사전 계산 높이 전달 |
 | CLI        | Commander + tsx                          | 백엔드 로직을 터미널에서 직접 검증               |
-| 테스트     | Vitest                                   | 유닛 테스트 47개                                 |
+| 테스트     | Vitest + React Testing Library            | 유닛/컴포넌트 테스트 67개                        |
 | 배포       | Vercel + Supabase Cloud                  | 프론트엔드/DB 각각 관리형 서비스                 |
 
 ---
@@ -148,9 +144,13 @@ src/
 
 SSE 스트리밍 응답을 3단계로 분리했습니다: 로딩(스피너) → LLM 요약 스트리밍(타이프라이터) → 검색 결과 카드(순차 애니메이션). 스피너는 첫 텍스트 청크가 도착하면 즉시 제거하여, 사용자가 "응답이 시작됐다"는 피드백을 빠르게 받을 수 있도록 했습니다.
 
-### 2. DOM 렌더 전 텍스트 높이 사전 계산
+### 2. DOM 렌더 전 텍스트 너비 측정과 높이 사전 계산
 
-Canvas 기반 워드프로세서 개발 경험([블로그 글](https://velog.io/@semimi/%EC%95%8C%EA%B3%A0%EB%A6%AC%EC%A6%98-%EA%B3%BC%EC%97%B0-%EC%82%AC%EC%9A%A9%ED%95%A0-%EC%9D%BC%EC%9D%B4-%EC%97%86%EC%9D%84%EA%B9%8C%EC%9A%94))에서 구현한 O(log n) 줄바꿈 최적화를 적용했습니다. 누적 폭 배열에서 이진탐색으로 줄바꿈 위치를 찾아, DOM reflow 없이 메시지 높이를 추정합니다. 이를 통해 가상 스크롤이 화면 밖 메시지의 높이도 정확히 계산할 수 있습니다.
+Canvas 기반 워드프로세서 개발 경험([블로그 글](https://velog.io/@semimi/%EC%95%8C%EA%B3%A0%EB%A6%AC%EC%A6%98-%EA%B3%BC%EC%97%B0-%EC%82%AC%EC%9A%A9%ED%95%A0-%EC%9D%BC%EC%9D%B4-%EC%97%86%EC%9D%84%EA%B9%8C%EC%9A%94))에서 구현한 O(log n) 줄바꿈 최적화를 적용했습니다.
+
+메시지 텍스트를 DOM에 넣기 전에 Canvas로 문자 폭을 측정하고, 컨테이너 폭 기준으로 줄바꿈 위치를 계산합니다. 이후 줄 수와 카드/아코디언 높이를 합산해 메시지 높이를 추정하고, 이 값을 `@tanstack/react-virtual`의 `estimateSize`에 전달합니다. 실제 DOM 렌더 전에도 스크롤 높이를 예측할 수 있어, 긴 대화와 스트리밍 타이핑 중에도 스크롤 위치가 흔들리지 않습니다.
+
+`getBoundingClientRect` 기반 DOM 측정 방식과 비교했을 때, 스트리밍 중 높이 측정의 스크립팅 비용이 85% 감소했습니다 (1,282ms → 193ms, Chrome DevTools Performance 기준).
 
 ### 3. 비즈니스 로직과 UI의 완전 분리
 
@@ -166,16 +166,8 @@ Canvas 기반 워드프로세서 개발 경험([블로그 글](https://velog.io/
 
 ---
 
-## Future Improvements
-
-- LLM 기반 조건 자동 추출 (현재 정규식 → LLM으로 복잡한 조건 처리)
-- 사용자 피드백 기반 검색 결과 개인화
-- 추천 질문 시스템 (이전 대화 기반)
-- 법령 ↔ 복지 서비스 교차 연결 강화
-
----
-
-## 검색 파이프라인 상세
+<details>
+<summary><h2 style="display:inline">검색 파이프라인 상세</h2></summary>
 
 ### 복지 검색: 조건 추출 + 하이브리드 검색 + 4단계 필터
 
@@ -250,6 +242,8 @@ coalesce(1.0 / (rrf_k + rank_v), 0) + coalesce(1.0 / (rrf_k + rank_k), 0) as rrf
 greatest(cosine_sim, 0) * 0.7 + (rrf_score * 30) * 0.3 as similarity
 ```
 
+</details>
+
 ---
 
 ## 자체 텍스트 측정 모듈
@@ -275,7 +269,8 @@ while (lo < hi) {
 // -> 띄어쓰기/CJK 경계로 후퇴하여 자연스러운 줄바꿈
 ```
 
-3. **복합 높이 추정**: 마크다운 텍스트 높이 + 도메인별 추가 높이(`extraHeight`)를 합산. 각 도메인(복지 카드, 법령 아코디언)이 자체 높이를 계산하여 공유 모듈에 도메인 필드가 침투하지 않음
+3. **DOM 렌더 전 높이 추정**: 메시지를 DOM에 넣기 전에 컨테이너 폭 기준 줄 수를 계산하고, 마크다운 텍스트 높이 + 도메인별 추가 높이(`extraHeight`)를 합산
+4. **virtualizer 연동**: 사전 계산한 메시지 높이를 `@tanstack/react-virtual`의 `estimateSize`에 전달. 화면 밖 메시지도 실제 렌더 전 높이를 예측해 긴 대화에서 스크롤 위치를 안정화
 
 ### TypeWriter: 어절 단위 타이핑 애니메이션
 
@@ -319,6 +314,8 @@ OpenAI 임베딩 + Supabase 적재 (rate limit 재시도, --skip-existing)
 
 ## 접근성
 
+대화형 AI 서비스는 비동기 상태 변화가 잦아, 스크린 리더 사용자가 응답 시작과 완료를 인지하기 어렵습니다. 시맨틱 마크업과 ARIA 속성으로 상태 변화를 전달하도록 설계했습니다.
+
 - **시맨틱 구조**: `role="main"`, `role="search"`, `role="log"`, `role="article"`
 - **ARIA 속성**: `aria-live="polite"`, `aria-busy`, `aria-label`
 - **Skip Link**: "검색 입력으로 건너뛰기"
@@ -326,6 +323,43 @@ OpenAI 임베딩 + Supabase 적재 (rate limit 재시도, --skip-existing)
 - **외부 링크**: `rel="noopener noreferrer"` + `aria-label`
 - **키 관리**: 리스트 key에 안정적인 도메인 id 사용 (index 사용 금지)
 - **다크모드**: Mantine 시맨틱 컬러 (하드코딩 없음)
+
+---
+
+## 성능 측정 결과
+
+Lighthouse 및 Chrome DevTools Performance로 측정한 결과입니다.
+
+### Lighthouse (라이브 배포 기준)
+
+<img src="docs/screenshots/lighthouse.png" alt="Lighthouse 스코어: Performance 99, Accessibility 89, Best Practices 100, SEO 100" width="480" />
+
+| 항목 | 점수 |
+| --- | --- |
+| Performance | 99 |
+| Accessibility | 89 |
+| Best Practices | 100 |
+| SEO | 100 |
+| CLS | 0 |
+
+### SSE 스트리밍 응답 시간
+
+| 항목 | 시간 |
+| --- | --- |
+| TTFB (첫 토큰 도달) | ~6.2s |
+| 전체 응답 (스트리밍 포함) | ~9.6s |
+
+서버 사이드(임베딩 검색 + LLM 호출) 처리 시간이 대부분이며, SSE 스트리밍으로 첫 텍스트 청크 도착 즉시 UI에 표시하여 체감 지연을 완화했습니다.
+
+### 텍스트 높이 측정 방식 비교 (Chrome DevTools Performance)
+
+| 지표 | getBoundingClientRect | Canvas measureText | 차이 |
+| --- | --- | --- | --- |
+| Scripting | 1,282ms | 193ms | **85% 감소** |
+| Rendering | 35ms | 27ms | 23% 감소 |
+| Painting | 18ms | 13ms | 28% 감소 |
+
+`getBoundingClientRect`는 매번 숨겨진 DOM 요소에 텍스트를 넣고 reflow를 발생시켜 높이를 측정합니다. Canvas 방식은 DOM 밖에서 문자 폭을 계산하므로 reflow 없이 높이를 추정합니다.
 
 ---
 
@@ -340,7 +374,10 @@ pnpm test
 | search/extract       | 나이/성별/직업/지역 추출, 키워드 분류, 대화 누적, 검색/질문 판단 | 29     |
 | text-layout/cache    | LRU 동작, 용량 초과, set/get/clear                               | 6      |
 | text-layout/prepared | 이진탐색 줄바꿈, 마크다운 파싱, 복합 높이 추정                   | 12     |
-| **전체**             |                                                                  | **47** |
+| ChatInput            | 빈 입력 차단, 공백 차단, trim 제출, disabled 상태, 버튼 클릭     | 5      |
+| BenefitCard          | 서비스명/유사도, 지원유형 배지, 조건 태그, 외부 링크, fallback   | 10     |
+| TabNav               | 탭 렌더링, 경로별 활성 탭, 탭 클릭 라우팅                        | 5      |
+| **전체**             |                                                                  | **67** |
 
 ---
 
@@ -378,3 +415,4 @@ pnpm run cli legal-fetch parse  # 마크다운 파싱 -> 조문 JSON
 pnpm run cli legal-fetch match  # 복지 서비스 법령 필드 매칭 확인
 pnpm run cli legal-embed articles # 임베딩 생성 + Supabase 적재
 ```
+
