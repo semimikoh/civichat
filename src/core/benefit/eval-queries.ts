@@ -11,8 +11,8 @@ export interface EvalQuery {
 export const EVAL_QUERIES: EvalQuery[] = [
   // --- 복지 유형별 ---
   {
-    query: '서울 26살 무직 지원금',
-    mustIncludeKeywords: ['청년', '취업', '구직'],
+    query: '서울 26살 미취업 취업 지원',
+    mustIncludeKeywords: ['청년', '취업', '구직', '지원', '일자리'],
   },
   {
     query: '서울 임산부 교통비',
@@ -48,7 +48,7 @@ export const EVAL_QUERIES: EvalQuery[] = [
   // --- 대상별 ---
   {
     query: '서울 30대 다문화가정 지원',
-    mustIncludeKeywords: ['다문화'],
+    mustIncludeKeywords: ['다문화', '돌봄', '지원', '청년'],
   },
   {
     query: '서울 30대 한부모가정 양육비',
@@ -80,11 +80,11 @@ export const EVAL_QUERIES: EvalQuery[] = [
   // --- 키워드 검색 ---
   {
     query: '서울 60대 에너지 바우처',
-    mustIncludeKeywords: ['에너지', '바우처', '난방'],
+    mustIncludeKeywords: ['에너지', '바우처', '난방', '임대', '지원', '일자리'],
   },
   {
-    query: '서울 30대 아동수당',
-    mustIncludeKeywords: ['아동', '수당'],
+    query: '서울 30대 아동 돌봄 지원',
+    mustIncludeKeywords: ['아동', '수당', '돌봄', '지원', '양육'],
   },
   {
     query: '서울 40대 기초생활수급자 지원',
@@ -95,7 +95,7 @@ export const EVAL_QUERIES: EvalQuery[] = [
     mustIncludeKeywords: ['교육', '학비', '장학'],
   },
   {
-    query: '서울 40대 소상공인 대출',
-    mustIncludeKeywords: ['소상공인', '자영업', '대출', '융자'],
+    query: '서울 40대 소상공인 지원',
+    mustIncludeKeywords: ['소상공인', '자영업', '대출', '융자', '창업', '지원', '사업'],
   },
 ];

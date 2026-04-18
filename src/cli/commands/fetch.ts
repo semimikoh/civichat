@@ -1,6 +1,6 @@
-import { Command } from 'commander';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { Command } from 'commander';
 import {
   fetchAllServiceList,
   fetchAllServiceDetails,

@@ -1,6 +1,6 @@
-import { Command } from 'commander';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { Command } from 'commander';
 import { parseLawsByNames, parseLawReferences, findLawFilePath } from '@/core/legal/parse';
 import { DATA_DIR } from '@/cli/commands/shared';
 import type { LawArticle } from '@/core/types/law';

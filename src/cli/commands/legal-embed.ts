@@ -1,6 +1,6 @@
-import { Command } from 'commander';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { Command } from 'commander';
 import { getSupabaseClient } from '@/core/db/supabase';
 import { embedTexts } from '@/core/embeddings/openai';
 import { DATA_DIR } from '@/cli/commands/shared';

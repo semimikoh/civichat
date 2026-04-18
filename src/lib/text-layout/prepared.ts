@@ -8,7 +8,6 @@ import {
   BOLD_FONT,
   buildCumulativeWidths,
 } from './measure';
-
 import type { VirtualizableMessage } from './use-message-height';
 
 // --- 타입 ---
@@ -126,7 +125,13 @@ function parseMarkdownSegments(markdown: string): TextSegment[] {
       continue;
     }
 
+    // 리스트 항목: "- ", "* ", "1. " 등 → 들여쓰기 고려
+    const isListItem = /^[-*]\s|^\d+\.\s/.test(trimmed);
+    const listPrefix = isListItem ? '  ' : ''; // 들여쓰기 근사
+
     const cleaned = trimmed
+      .replace(/^[-*]\s+/, '')        // unordered list marker
+      .replace(/^\d+\.\s+/, '')       // ordered list marker
       .replace(/\*\*(.+?)\*\*/g, '$1')
       .replace(/\*(.+?)\*/g, '$1')
       .replace(/`(.+?)`/g, '$1')
@@ -134,9 +139,9 @@ function parseMarkdownSegments(markdown: string): TextSegment[] {
 
     const hasBold = /\*\*/.test(trimmed);
     segments.push({
-      text: cleaned,
+      text: listPrefix + cleaned,
       font: hasBold ? BOLD_FONT : DEFAULT_FONT,
-      blockSpacing: 4,
+      blockSpacing: isListItem ? 2 : 4,
     });
   }
 

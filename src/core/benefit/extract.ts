@@ -1,7 +1,6 @@
-// import OpenAI from 'openai';
-//
-// LLM 기반 조건 추출은 주석 처리.
-// 코드 기반 키워드 파싱으로 대체.
+// 코드 기반 키워드 파싱.
+// 패턴 정의는 extract-patterns.ts에 분리.
+import * as Patterns from './extract-patterns';
 
 export interface ExtractedConditions {
   age: number | null;
@@ -35,24 +34,21 @@ export interface ConversationMessage {
 
 // --- 나이 추출 ---
 function extractAge(text: string): number | null {
-  // "26살", "26세", "만26세"
-  const exact = text.match(/만?\s*(\d{1,3})\s*(살|세)/);
+  const exact = text.match(Patterns.AGE_EXACT_PATTERN);
   if (exact) return parseInt(exact[1], 10);
 
-  // "30대" → 35 (대표값)
-  const decade = text.match(/(\d)0\s*대/);
+  const decade = text.match(Patterns.AGE_DECADE_PATTERN);
   if (decade) return parseInt(decade[1], 10) * 10 + 5;
 
-  // "청년" → 26
-  if (/청년/.test(text)) return 26;
+  if (Patterns.AGE_YOUTH_KEYWORD.test(text)) return 26;
 
   return null;
 }
 
-/** 나이를 사용자 입력 형태에 맞게 표시 (30대 입력 → "30대", 26살 입력 → "26세") */
+/** 나이를 사용자 입력 형태에 맞게 표시 */
 export function formatAgeLabel(age: number, userQuery: string): string {
-  if (/(\d)0\s*대/.test(userQuery)) return `${Math.floor(age / 10) * 10}대`;
-  if (/청년/.test(userQuery)) return '청년';
+  if (Patterns.AGE_DECADE_PATTERN.test(userQuery)) return `${Math.floor(age / 10) * 10}대`;
+  if (Patterns.AGE_YOUTH_KEYWORD.test(userQuery)) return '청년';
   return `${age}세`;
 }
 
@@ -77,29 +73,15 @@ export function formatConditionText(conditions: ExtractedConditions, userQuery: 
 
 // --- 성별 추출 ---
 function extractGender(text: string): '남성' | '여성' | null {
-  if (/여성|여자|엄마|임산부|임신|산모/.test(text)) return '여성';
-  if (/남성|남자|아빠/.test(text)) return '남성';
+  for (const [pattern, label] of Patterns.GENDER_PATTERNS) {
+    if (pattern.test(text)) return label;
+  }
   return null;
 }
 
 // --- 직업/상태 추출 ---
-const OCCUPATION_MAP: [RegExp, string][] = [
-  [/무직|미취업|실업|구직|백수/, '구직자/실업자'],
-  [/대학생|대학원생/, '대학생/대학원생'],
-  [/고등학생|고딩/, '고등학생'],
-  [/중학생/, '중학생'],
-  [/초등학생/, '초등학생'],
-  [/직장인|회사원|근로자|직장/, '근로자/직장인'],
-  [/농업|농민|농부/, '농업인'],
-  [/어업|어부/, '어업인'],
-  [/임산부|임신/, '임산부'],
-  [/장애인/, '장애인'],
-  [/국가유공|보훈/, '국가보훈대상자'],
-  [/창업|사업자|자영업/, '예비창업자'],
-];
-
 function extractOccupation(text: string): string | null {
-  for (const [pattern, label] of OCCUPATION_MAP) {
+  for (const [pattern, label] of Patterns.OCCUPATION_PATTERNS) {
     if (pattern.test(text)) return label;
   }
   return null;
@@ -210,31 +192,20 @@ function extractRegion(text: string): { region: string | null; regionProvince: s
 
 // --- 소득 추출 ---
 function extractIncome(text: string): number | null {
-  // "연봉 3000만원", "연봉 3000", "연 3000만원"
-  const annual = text.match(/연봉?\s*(\d{1,5})\s*만?\s*원?/);
+  const annual = text.match(Patterns.INCOME_ANNUAL_PATTERN);
   if (annual) return parseInt(annual[1], 10);
 
-  // "월급 200만원", "월 200만원", "월급여 200"
-  const monthly = text.match(/월\s*(?:급여?|소득|수입)?\s*(\d{1,4})\s*만?\s*원?/);
+  const monthly = text.match(Patterns.INCOME_MONTHLY_PATTERN);
   if (monthly) return parseInt(monthly[1], 10) * 12;
 
-  // "최저임금", "최저시급"
-  if (/최저임금|최저시급/.test(text)) return 2400; // 2024 기준 약 2400만원
+  if (Patterns.INCOME_MINIMUM_WAGE_PATTERN.test(text)) return Patterns.MINIMUM_WAGE_ANNUAL;
 
   return null;
 }
 
 // --- 결혼 상태 추출 ---
-const MARITAL_MAP: [RegExp, string][] = [
-  [/신혼|신혼부부|결혼\s*예정/, '신혼'],
-  [/기혼|결혼\s*했|유부/, '기혼'],
-  [/미혼|비혼|독신|결혼\s*안/, '미혼'],
-  [/이혼/, '이혼'],
-  [/사별|배우자\s*사망/, '사별'],
-];
-
 function extractMaritalStatus(text: string): string | null {
-  for (const [pattern, label] of MARITAL_MAP) {
+  for (const [pattern, label] of Patterns.MARITAL_PATTERNS) {
     if (pattern.test(text)) return label;
   }
   return null;
@@ -242,29 +213,17 @@ function extractMaritalStatus(text: string): string | null {
 
 // --- 가구원 수 추출 ---
 function extractHouseholdSize(text: string): number | null {
-  // "3인 가구", "3인가구", "가족 3명"
-  const match = text.match(/(\d)\s*인\s*가(?:구|족)|가(?:구|족)\s*(\d)\s*(?:명|인)/);
+  const match = text.match(Patterns.HOUSEHOLD_SIZE_PATTERN);
   if (match) return parseInt(match[1] || match[2], 10);
 
-  // "혼자 살", "1인 가구"
-  if (/혼자\s*살|혼자\s*거주|1인\s*가구/.test(text)) return 1;
+  if (Patterns.HOUSEHOLD_SINGLE_PATTERN.test(text)) return 1;
 
   return null;
 }
 
 // --- 고용 형태 추출 ---
-const EMPLOYMENT_MAP: [RegExp, string][] = [
-  [/비정규직|비정규/, '비정규직'],
-  [/계약직/, '계약직'],
-  [/정규직/, '정규직'],
-  [/프리랜서|프리/, '프리랜서'],
-  [/파견직|파견/, '파견직'],
-  [/일용직|일용/, '일용직'],
-  [/아르바이트|알바/, '아르바이트'],
-];
-
 function extractEmploymentType(text: string): string | null {
-  for (const [pattern, label] of EMPLOYMENT_MAP) {
+  for (const [pattern, label] of Patterns.EMPLOYMENT_PATTERNS) {
     if (pattern.test(text)) return label;
   }
   return null;
@@ -272,96 +231,50 @@ function extractEmploymentType(text: string): string | null {
 
 // --- 거주 기간 추출 ---
 function extractResidenceDuration(text: string): number | null {
-  // "거주 3년", "3년 거주", "전입 3년"
-  const years = text.match(/(?:거주|전입|살[아았]온?)\s*(\d{1,2})\s*년|(\d{1,2})\s*년\s*(?:거주|전입|살[아았])/);
+  const years = text.match(Patterns.RESIDENCE_YEARS_PATTERN);
   if (years) return parseInt(years[1] || years[2], 10) * 12;
 
-  // "거주 6개월", "전입 6개월"
-  const months = text.match(/(?:거주|전입)\s*(\d{1,3})\s*개월|(\d{1,3})\s*개월\s*(?:거주|전입)/);
+  const months = text.match(Patterns.RESIDENCE_MONTHS_PATTERN);
   if (months) return parseInt(months[1] || months[2], 10);
 
   return null;
 }
 
 // --- 주거 형태 추출 ---
-const HOUSING_MAP: [RegExp, string][] = [
-  [/무주택/, '무주택'],
-  [/전세/, '전세'],
-  [/월세/, '월세'],
-  [/자가|자기\s*집|내\s*집/, '자가'],
-  [/기숙사/, '기숙사'],
-  [/고시원|고시텔/, '고시원'],
-];
-
 function extractHousingType(text: string): string | null {
-  for (const [pattern, label] of HOUSING_MAP) {
+  for (const [pattern, label] of Patterns.HOUSING_PATTERNS) {
     if (pattern.test(text)) return label;
   }
   return null;
 }
 
 // --- 건강보험 유형 추출 ---
-const INSURANCE_MAP: [RegExp, string][] = [
-  [/의료급여|의료\s*수급/, '의료급여'],
-  [/지역\s*가입자|지역\s*건보/, '지역가입자'],
-  [/직장\s*가입자|직장\s*건보/, '직장가입자'],
-];
-
 function extractInsuranceType(text: string): string | null {
-  for (const [pattern, label] of INSURANCE_MAP) {
+  for (const [pattern, label] of Patterns.INSURANCE_PATTERNS) {
     if (pattern.test(text)) return label;
   }
   return null;
 }
 
 // --- 학력 추출 ---
-const EDUCATION_MAP: [RegExp, string][] = [
-  [/중졸|중학교\s*졸/, '중졸'],
-  [/고졸|고등학교\s*졸/, '고졸'],
-  [/대졸|대학교?\s*졸|학사/, '대졸'],
-  [/석사|대학원\s*졸/, '석사'],
-  [/박사/, '박사'],
-];
-
 function extractEducation(text: string): string | null {
-  for (const [pattern, label] of EDUCATION_MAP) {
+  for (const [pattern, label] of Patterns.EDUCATION_PATTERNS) {
     if (pattern.test(text)) return label;
   }
   return null;
 }
 
 // --- 국적/체류자격 추출 ---
-const NATIONALITY_MAP: [RegExp, string][] = [
-  [/결혼\s*이민|결혼\s*이주/, '결혼이민자'],
-  [/외국인|외국\s*국적/, '외국인'],
-  [/다문화/, '다문화가족'],
-  [/탈북|북한\s*이탈|새터민/, '북한이탈주민'],
-  [/귀화/, '귀화자'],
-];
-
 function extractNationality(text: string): string | null {
-  for (const [pattern, label] of NATIONALITY_MAP) {
+  for (const [pattern, label] of Patterns.NATIONALITY_PATTERNS) {
     if (pattern.test(text)) return label;
   }
   return null;
 }
 
-// --- 키워드 추출 ---
-const TOPIC_KEYWORDS: [RegExp, string[]][] = [
-  [/취업|구직|일자리|면접/, ['취업', '구직활동', '일자리']],
-  [/주거|집|전세|월세|주택/, ['주거', '주택', '전세']],
-  [/출산|아기|육아|보육/, ['출산', '육아', '보육']],
-  [/임산부|임신|산모/, ['임산부', '임신', '출산']],
-  [/의료|병원|건강|진료/, ['의료', '건강', '진료']],
-  [/교육|학비|장학/, ['교육', '학비', '장학금']],
-  [/창업|사업|자영/, ['창업', '사업']],
-  [/지원금|보조금|수당|혜택/, ['지원금', '혜택']],
-  [/대출|융자|이자/, ['대출', '융자']],
-];
-
 function extractKeywords(text: string): string[] {
   const keywords: string[] = [];
-  for (const [pattern, kws] of TOPIC_KEYWORDS) {
+  for (const [pattern, kws] of Patterns.TOPIC_PATTERNS) {
     if (pattern.test(text)) {
       keywords.push(...kws);
     }
@@ -454,10 +367,8 @@ function extractPreviousConditions(history: ConversationMessage[]): ExtractedCon
 }
 
 // --- 조건 초기화 감지 ---
-const RESET_PATTERNS = /^(초기화|리셋|reset|다시\s*검색|새로\s*검색|처음부터)/i;
-
 function shouldResetConditions(text: string): boolean {
-  return RESET_PATTERNS.test(text.trim());
+  return Patterns.RESET_PATTERN.test(text.trim());
 }
 
 // --- 메인: 코드 기반 분석 ---

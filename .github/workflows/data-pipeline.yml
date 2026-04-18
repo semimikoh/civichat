@@ -1,0 +1,57 @@
+name: Data Pipeline
+
+on:
+  schedule:
+    # 매주 월요일 09:00 KST (일요일 24:00 UTC)
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '갱신 대상 (benefit / legal / all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - benefit
+          - legal
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+jobs:
+  update-benefit:
+    if: ${{ github.event.inputs.target != 'legal' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Fetch benefit data
+        run: pnpm cli fetch
+      - name: Embed benefit data
+        run: pnpm cli embed
+
+  update-legal:
+    if: ${{ github.event.inputs.target != 'benefit' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Fetch legal data
+        run: pnpm cli legal-fetch
+      - name: Embed legal data
+        run: pnpm cli legal-embed

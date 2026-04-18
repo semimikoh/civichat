@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { searchLawArticles } from '@/core/legal/search';
 import { summarizeLawResultsStream } from '@/core/legal/summarize';
 import { SSE_EVENT } from '@/core/types/sse';
+import { captureError } from '@/lib/sentry';
 
 const searchSchema = z.object({
   query: z.string().trim().min(1).max(500),
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
   try {
     response = await searchLawArticles({ query, matchCount: count });
   } catch (err) {
-    console.error('법령 검색 실패:', err);
+    captureError(err, { query, source: 'legal-search' });
     return Response.json(
       { error: '검색 중 오류가 발생했습니다.' },
       { status: 500 },
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
           }
           enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.SUMMARY_DONE })}\n\n`);
         } catch (err) {
-          console.error('요약 스트리밍 실패:', err);
+          captureError(err, { query, source: 'legal-summary' });
           enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.SUMMARY_DONE, error: '요약 생성 중 오류가 발생했습니다.' })}\n\n`);
         }
       }

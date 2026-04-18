@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Box, Container } from '@mantine/core';
-import { ColorSchemeScript } from '@mantine/core';
+import { Box, Container , ColorSchemeScript } from '@mantine/core';
 import { Providers } from '@/components/providers/Providers';
 import { TabNav } from '@/components/home/TabNav';
 import './globals.css';
