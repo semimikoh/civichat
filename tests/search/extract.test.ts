@@ -67,9 +67,27 @@ describe('analyzeQuery', () => {
       expect(r.conditions.occupation).toBe('근로자/직장인');
     });
 
+    it('취준생 → 구직자/실업자', () => {
+      const r = analyzeQuery('서울 취준생 면접 지원', []);
+      expect(r.conditions.occupation).toBe('구직자/실업자');
+      expect(r.conditions.keywords).toContain('취업');
+    });
+
     it('임산부 → 임산부', () => {
       const r = analyzeQuery('임산부 혜택', []);
       expect(r.conditions.occupation).toBe('임산부');
+    });
+
+    it('소상공인 → 소상공인/자영업자', () => {
+      const r = analyzeQuery('서울 소상공인 대출 지원', []);
+      expect(r.conditions.occupation).toBe('소상공인/자영업자');
+      expect(r.conditions.keywords).toContain('소상공인');
+    });
+
+    it('한부모 → 한부모가족', () => {
+      const r = analyzeQuery('인천 한부모 양육비 지원', []);
+      expect(r.conditions.occupation).toBe('한부모가족');
+      expect(r.conditions.keywords).toContain('한부모');
     });
 
     it('직업 없으면 null', () => {
@@ -123,6 +141,12 @@ describe('analyzeQuery', () => {
     it('임산부 관련', () => {
       const r = analyzeQuery('임산부 혜택', []);
       expect(r.conditions.keywords).toContain('임산부');
+    });
+
+    it('저소득 관련', () => {
+      const r = analyzeQuery('서울 차상위 의료비 지원', []);
+      expect(r.conditions.keywords).toContain('저소득');
+      expect(r.conditions.income).toBe(1800);
     });
   });
 

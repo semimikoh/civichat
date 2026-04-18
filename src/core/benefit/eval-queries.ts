@@ -98,4 +98,47 @@ export const EVAL_QUERIES: EvalQuery[] = [
     query: '서울 40대 소상공인 지원',
     mustIncludeKeywords: ['소상공인', '자영업', '대출', '융자', '창업', '지원', '사업'],
   },
+  {
+    query: '서울 취준생 면접 비용 지원',
+    mustIncludeKeywords: ['취업', '구직', '면접', '청년', '일자리'],
+    mustExcludeKeywords: ['노인', '임산부'],
+  },
+  {
+    query: '부산 자영업자 경영 자금 대출',
+    mustIncludeKeywords: ['소상공인', '자영업', '대출', '융자', '경영', '사업'],
+  },
+  {
+    query: '인천 한부모 양육비 지원',
+    mustIncludeKeywords: ['한부모', '양육', '가족'],
+    mustExcludeKeywords: ['노인', '장애'],
+  },
+  {
+    query: '서울 차상위 의료비 지원',
+    mustIncludeKeywords: ['차상위', '저소득', '의료', '건강', '지원'],
+  },
+  {
+    query: '경기도 무주택 신혼부부 월세 지원',
+    mustIncludeKeywords: ['신혼', '주거', '월세', '주택', '전세'],
+  },
+  {
+    query: '대구 1인 가구 주거 지원',
+    mustIncludeKeywords: ['1인', '주거', '주택', '월세', '지원'],
+  },
+  {
+    query: '광주 청년 월세 지원',
+    mustIncludeKeywords: ['청년', '월세', '주거', '주택'],
+  },
+  {
+    query: '충남 천안 소상공인 창업 지원',
+    mustIncludeKeywords: ['소상공인', '창업', '사업', '지원'],
+  },
+  {
+    query: '서울 기초수급자 생계 지원',
+    mustIncludeKeywords: ['기초', '생활', '수급', '생계'],
+  },
+  {
+    query: '제주 임신 출산 지원',
+    mustIncludeKeywords: ['임산부', '임신', '출산', '산모'],
+    mustExcludeKeywords: ['노인', '장애'],
+  },
 ];

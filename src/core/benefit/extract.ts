@@ -199,6 +199,7 @@ function extractIncome(text: string): number | null {
   if (monthly) return parseInt(monthly[1], 10) * 12;
 
   if (Patterns.INCOME_MINIMUM_WAGE_PATTERN.test(text)) return Patterns.MINIMUM_WAGE_ANNUAL;
+  if (Patterns.LOW_INCOME_PATTERN.test(text)) return Patterns.LOW_INCOME_ANNUAL;
 
   return null;
 }
@@ -304,6 +305,10 @@ function buildSearchQuery(conditions: ExtractedConditions, originalQuery: string
     parts.push('미취업 청년 구직활동 지원');
   } else if (conditions.occupation === '임산부') {
     parts.push('임산부 임신 출산 지원');
+  } else if (conditions.occupation === '소상공인/자영업자') {
+    parts.push('소상공인 자영업 사업 대출 경영 지원');
+  } else if (conditions.occupation === '한부모가족') {
+    parts.push('한부모 가족 양육비 돌봄 지원');
   } else if (conditions.occupation) {
     parts.push(conditions.occupation, '지원');
   }
@@ -316,6 +321,9 @@ function buildSearchQuery(conditions: ExtractedConditions, originalQuery: string
   }
   if (conditions.nationality) {
     parts.push(conditions.nationality, '지원');
+  }
+  if (conditions.income !== null && conditions.income <= Patterns.LOW_INCOME_ANNUAL) {
+    parts.push('저소득 기초생활 수급자 차상위 지원');
   }
 
   return [...new Set(parts)].join(' ');
@@ -429,7 +437,7 @@ export function analyzeQuery(
 
   // 검색 가능 여부 판단
   const GENERIC_KEYWORDS = ['지원금', '혜택', '지원', '보조금', '수당'];
-  const specificKeywords = keywords.filter((k) => !GENERIC_KEYWORDS.includes(k));
+  const specificKeywords = conditions.keywords.filter((k) => !GENERIC_KEYWORDS.includes(k));
 
   const hasEnoughContext = [
     age !== null,
@@ -495,4 +503,3 @@ function emptyConditions(): ExtractedConditions {
     searchQuery: '',
   };
 }
-

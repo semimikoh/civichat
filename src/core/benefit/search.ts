@@ -74,22 +74,100 @@ export interface SearchOptions {
   matchThreshold?: number;
 }
 
-// --- 서비스명 매칭 부스트: 쿼리 키워드가 서비스명에 포함되면 유사도 가산 ---
+type BenefitRpcParams = {
+  query_embedding: string;
+  query_text: string;
+  region_filter: string | null;
+  province_filter: string | null;
+  match_threshold: number;
+  match_count: number;
+};
 
-function applyNameBoost(results: SearchResult[], userQuery: string): SearchResult[] {
-  const queryWords = userQuery.replace(/[^가-힣a-zA-Z0-9\s]/g, '').split(/\s+/).filter((w) => w.length >= 2);
+// --- 최종 재정렬: 검색 점수 + 조건/지역/주제 매칭을 합산 ---
+
+const REGION_NATIONWIDE_PATTERN = /전국|공통|중앙|보건복지부|고용노동부|여성가족부|국토교통부|중소벤처기업부/;
+const CLOSED_PATTERN = /마감|종료|폐지|중단|만료/;
+
+function tokenizeQuery(userQuery: string, conditions: ExtractedConditions): string[] {
+  const words = userQuery
+    .replace(/[^가-힣a-zA-Z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 2);
+
+  return [...new Set([...words, ...conditions.keywords])];
+}
+
+function countMatches(text: string, words: string[]): number {
+  return words.reduce((count, word) => count + (text.includes(word) ? 1 : 0), 0);
+}
+
+function calcRegionBoost(result: SearchResult, conditions: ExtractedConditions): number {
+  if (!conditions.region) return 0;
+
+  const agency = result.managingAgency;
+  if (agency.includes(conditions.region)) return 0.12;
+  if (conditions.regionProvince && agency.includes(conditions.regionProvince)) return 0.08;
+  if (REGION_NATIONWIDE_PATTERN.test(agency)) return 0.03;
+
+  return -0.06;
+}
+
+function calcConditionBoost(result: SearchResult, conditions: ExtractedConditions): number {
+  const text = [
+    result.serviceName,
+    result.servicePurpose,
+    result.targetAudience,
+    result.selectionCriteria,
+    result.supportContent,
+    result.supportType,
+  ].join(' ');
+
+  let score = 0;
+
+  if (conditions.occupation && text.includes(conditions.occupation.split('/')[0])) score += 0.08;
+  if (conditions.occupation === '구직자/실업자' && /미취업|구직|취업|일자리|청년/.test(text)) score += 0.1;
+  if (conditions.occupation === '임산부' && /임산부|임신|산모|출산/.test(text)) score += 0.12;
+  if (conditions.occupation === '소상공인/자영업자' && /소상공인|자영업|사업자|경영|창업/.test(text)) score += 0.12;
+  if (conditions.occupation === '한부모가족' && /한부모|양육|미혼모|미혼부/.test(text)) score += 0.12;
+  if (conditions.maritalStatus === '신혼' && /신혼|부부|혼인|전세|주택/.test(text)) score += 0.1;
+  if (conditions.housingType && text.includes(conditions.housingType)) score += 0.06;
+  if (conditions.income !== null && conditions.income <= 1800 && /저소득|기초생활|수급|차상위|중위소득/.test(text)) score += 0.1;
+  if (conditions.age !== null && conditions.age < 40 && /청년|청소년|대학생/.test(text)) score += 0.06;
+  if (conditions.age !== null && conditions.age >= 60 && /노인|어르신|고령|시니어/.test(text)) score += 0.1;
+
+  return score;
+}
+
+function applyRelevanceRerank(
+  results: SearchResult[],
+  userQuery: string,
+  conditions: ExtractedConditions,
+): SearchResult[] {
+  const queryWords = tokenizeQuery(userQuery, conditions);
   if (queryWords.length === 0) return results;
 
-  const boosted = results.map((r) => {
-    const name = r.serviceName;
-    const matchCount = queryWords.filter((w) => name.includes(w)).length;
-    const matchRatio = matchCount / queryWords.length;
-    // 서비스명에 쿼리 키워드가 많이 겹칠수록 부스트 (최대 +0.15)
-    const boost = matchRatio * 0.15;
-    return { ...r, similarity: Math.min(r.similarity + boost, 1) };
+  const reranked = results.map((result) => {
+    const nameMatches = countMatches(result.serviceName, queryWords);
+    const body = [
+      result.servicePurpose,
+      result.targetAudience,
+      result.selectionCriteria,
+      result.supportContent,
+    ].join(' ');
+    const bodyMatches = countMatches(body, queryWords);
+    const keywordBoost = Math.min(nameMatches * 0.08 + bodyMatches * 0.025, 0.22);
+    const regionBoost = calcRegionBoost(result, conditions);
+    const conditionBoost = calcConditionBoost(result, conditions);
+    const closedPenalty = CLOSED_PATTERN.test(`${result.applicationDeadline} ${result.serviceName}`) ? -0.08 : 0;
+    const finalScore = result.similarity + keywordBoost + regionBoost + conditionBoost + closedPenalty;
+
+    return {
+      ...result,
+      similarity: Math.max(0, Math.min(finalScore, 1)),
+    };
   });
 
-  return boosted.sort((a, b) => b.similarity - a.similarity);
+  return reranked.sort((a, b) => b.similarity - a.similarity);
 }
 
 // --- 컨텍스트 불일치 필터: 사용자가 언급하지 않은 특수 대상 서비스 제외 ---
@@ -187,6 +265,24 @@ async function applyConditionFilter(
   });
 }
 
+async function searchBenefitCandidates(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  params: BenefitRpcParams,
+) {
+  const { data, error } = await supabase.rpc('match_benefits_hybrid', params);
+
+  if (error) {
+    throw new Error(`하이브리드 검색 실패: ${error.message}`);
+  }
+
+  const parsed = z.array(rpcRowSchema).safeParse(data ?? []);
+  if (!parsed.success) {
+    throw new Error(`RPC 응답 파싱 실패: ${parsed.error.message}`);
+  }
+
+  return parsed.data;
+}
+
 /** 대화형 검색: 조건 추출 -> 질문 또는 검색 */
 export async function searchBenefits(options: SearchOptions): Promise<SearchResponse> {
   const { query, history = [], matchCount = 10, matchThreshold = 0.3 } = options;
@@ -211,25 +307,37 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
 
   const supabase = getSupabaseClient();
 
-  const { data, error } = await supabase.rpc('match_benefits_hybrid', {
+  const baseRpcParams = {
     query_embedding: JSON.stringify(queryEmbedding),
     query_text: searchText,
+    match_threshold: matchThreshold,
+  };
+
+  const regionalRows = await searchBenefitCandidates(supabase, {
+    ...baseRpcParams,
     region_filter: conditions.region,
     province_filter: conditions.regionProvince,
-    match_threshold: matchThreshold,
-    match_count: matchCount * 5,
+    match_count: matchCount * 8,
   });
 
-  if (error) {
-    throw new Error(`하이브리드 검색 실패: ${error.message}`);
+  const broadRows = conditions.region
+    ? await searchBenefitCandidates(supabase, {
+      ...baseRpcParams,
+      region_filter: null,
+      province_filter: null,
+      match_count: matchCount * 4,
+    })
+    : [];
+
+  const rowMap = new Map<string, z.infer<typeof rpcRowSchema>>();
+  for (const row of [...regionalRows, ...broadRows]) {
+    const existing = rowMap.get(row.service_id);
+    if (!existing || row.similarity > existing.similarity) {
+      rowMap.set(row.service_id, row);
+    }
   }
 
-  const parsed = z.array(rpcRowSchema).safeParse(data ?? []);
-  if (!parsed.success) {
-    throw new Error(`RPC 응답 파싱 실패: ${parsed.error.message}`);
-  }
-
-  let results: SearchResult[] = parsed.data.map((row) => ({
+  let results: SearchResult[] = Array.from(rowMap.values()).map((row) => ({
     serviceId: row.service_id,
     serviceName: row.service_name,
     servicePurpose: row.service_purpose,
@@ -259,8 +367,8 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
   // 5. 컨텍스트 불일치 필터
   results = applyContextFilter(results, query);
 
-  // 6. 서비스명 매칭 부스트
-  results = applyNameBoost(results, query);
+  // 6. 조건/지역/키워드 기반 최종 재정렬
+  results = applyRelevanceRerank(results, query, conditions);
 
   const finalResults = results.slice(0, matchCount);
   const condText = formatConditionText(conditions, query);
