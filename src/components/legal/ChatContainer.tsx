@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { ActionIcon, Box, Button, Container, Stack, Group, TextInput, Title, Text, Center, Loader, Paper } from '@mantine/core';
 import Markdown from 'react-markdown';
 import { LawArticleList } from '@/components/legal/LawArticleCard';
@@ -8,20 +8,7 @@ import { useTypewriter } from '@/lib/use-typewriter';
 import { useMessageVirtualizer } from '@/lib/text-layout/use-message-height';
 import { USER_BUBBLE_WIDTH_RATIO, ASSISTANT_BUBBLE_WIDTH_RATIO, LAW_ACCORDION_COLLAPSED_HEIGHT, CARD_GAP } from '@/lib/text-layout/prepared';
 import type { LawSearchResult } from '@/core/legal/search';
-import type { SSEEvent } from '@/core/types/sse';
-import { parseSSEStream } from '@/lib/use-sse-stream';
-
-interface LawChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  summary?: string;
-  results?: LawSearchResult[];
-  /** 원본 검색어 (하이라이트용) */
-  query?: string;
-  /** 가상 스크롤 높이 계산용 */
-  extraHeight?: number;
-  loading?: boolean;
-}
+import { useChatSearchStream, type BaseChatMessage } from '@/lib/use-chat-search-stream';
 
 function EmptyState() {
   return (
@@ -41,9 +28,11 @@ function EmptyState() {
   );
 }
 
+type LawChatMessage = BaseChatMessage<LawSearchResult>;
+
 function AssistantMessage({ msg }: { msg: LawChatMessage }) {
   const hasResults = msg.results && msg.results.length > 0;
-  const { visibleText: visibleSummary, isDone: summaryDone } = useTypewriter(msg.summary ?? '', {
+  const { visibleText: visibleSummary } = useTypewriter(msg.summary ?? '', {
     interval: 40,
     enabled: Boolean(msg.summary),
   });
@@ -69,7 +58,7 @@ function AssistantMessage({ msg }: { msg: LawChatMessage }) {
           {visibleContent}
         </Text>
       )}
-      {hasResults && summaryDone && (
+      {hasResults && (
         <LawArticleList results={msg.results!} query={msg.query} />
       )}
     </>
@@ -126,101 +115,27 @@ function ChatInput({ onSubmit, disabled }: { onSubmit: (msg: string) => void; di
 }
 
 export function ChatContainer() {
-  const [messages, setMessages] = useState<LawChatMessage[]>([]);
-  const [isInputDisabled, setIsInputDisabled] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
-  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+  const buildBody = useCallback((query: string) => {
+    return { query, count: 10 };
+  }, []);
+
+  const calcExtraHeight = useCallback((results: LawSearchResult[]) => {
+    return results.length * (LAW_ACCORDION_COLLAPSED_HEIGHT + CARD_GAP);
+  }, []);
+
+  const {
+    messages,
+    isInputDisabled,
+    handleSubmit,
+    resetChat,
+  } = useChatSearchStream<LawSearchResult>({
+    apiUrl: '/api/legal/search',
+    buildBody,
+    calcExtraHeight,
+  });
 
   const visibleMessages = messages.filter((m) => !m.loading);
   const { virtualizer, scrollRef } = useMessageVirtualizer(visibleMessages);
-
-  const handleSubmit = async (query: string) => {
-    readerRef.current?.cancel();
-    readerRef.current = null;
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    const userMsg: LawChatMessage = { role: 'user', content: query };
-    const loadingMsg: LawChatMessage = { role: 'assistant', content: '', loading: true };
-
-    setMessages((prev) => [...prev, userMsg, loadingMsg]);
-    setIsInputDisabled(true);
-
-    try {
-      const res = await fetch('/api/legal/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, count: 10 }),
-        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(60000)]),
-      });
-
-      if (!res.ok) throw new Error(`서버 오류 (${res.status})`);
-
-      const contentType = res.headers.get('content-type') ?? '';
-
-      if (contentType.includes('application/json')) {
-        const data = await res.json() as SSEEvent<LawSearchResult>;
-        setMessages((prev) => [
-          ...prev.slice(0, -1),
-          { role: 'assistant', content: data.message ?? data.error ?? '' },
-        ]);
-        return;
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error('스트림을 읽을 수 없습니다.');
-      readerRef.current = reader;
-
-      await parseSSEStream<LawSearchResult>(reader, {
-        onSummaryChunk(_chunk, accumulated) {
-          setIsInputDisabled(false);
-          setMessages((prev) => {
-            const updated = [...prev];
-            const idx = updated.findLastIndex((m) => m.role === 'assistant');
-            if (idx !== -1) {
-              updated[idx] = { ...updated[idx], loading: false, summary: accumulated };
-            }
-            return updated;
-          });
-        },
-        onResults(message, results) {
-          setIsInputDisabled(false);
-          setMessages((prev) => {
-            const updated = [...prev];
-            const idx = updated.findLastIndex((m) => m.role === 'assistant');
-            if (idx !== -1) {
-              updated[idx] = {
-                ...updated[idx],
-                loading: false,
-                content: message,
-                results,
-                query,
-                extraHeight: results.length * (LAW_ACCORDION_COLLAPSED_HEIGHT + CARD_GAP),
-              };
-            }
-            return updated;
-          });
-        },
-        onError(message) {
-          setMessages((prev) => [
-            ...prev.slice(0, -1),
-            { role: 'assistant', content: message },
-          ]);
-        },
-      });
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return;
-      const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
-      setMessages((prev) => [
-        ...prev.slice(0, -1),
-        { role: 'assistant', content: `오류가 발생했습니다: ${errMsg}` },
-      ]);
-    } finally {
-      readerRef.current = null;
-      setIsInputDisabled(false);
-    }
-  };
 
   return (
     <Container size="xs" h="100%" py="md" role="main" aria-label="CiviChat 법령 검색" aria-busy={isInputDisabled}>
@@ -338,7 +253,7 @@ export function ChatContainer() {
             <Button
               variant="subtle"
               size="xs"
-              onClick={() => { abortRef.current?.abort(); readerRef.current?.cancel(); setMessages([]); setIsInputDisabled(false); }}
+              onClick={resetChat}
             >
               새 대화 하기
             </Button>

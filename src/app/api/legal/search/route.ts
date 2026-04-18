@@ -26,7 +26,16 @@ export async function POST(request: Request) {
 
   const { query, count } = parsed.data;
 
-  const response = await searchLawArticles({ query, matchCount: count });
+  let response;
+  try {
+    response = await searchLawArticles({ query, matchCount: count });
+  } catch (err) {
+    console.error('법령 검색 실패:', err);
+    return Response.json(
+      { error: '검색 중 오류가 발생했습니다.' },
+      { status: 500 },
+    );
+  }
 
   const encoder = new TextEncoder();
   let cancelled = false;
@@ -36,6 +45,9 @@ export async function POST(request: Request) {
         if (cancelled) return;
         controller.enqueue(encoder.encode(data));
       };
+
+      // 검색 결과를 먼저 전송 → 카드가 즉시 표시됨
+      enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.RESULTS, message: response.message, results: response.results })}\n\n`);
 
       if (response.results.length > 0) {
         try {
@@ -54,8 +66,6 @@ export async function POST(request: Request) {
           enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.SUMMARY_DONE, error: '요약 생성 중 오류가 발생했습니다.' })}\n\n`);
         }
       }
-
-      enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.RESULTS, message: response.message, results: response.results })}\n\n`);
 
       if (!cancelled) controller.close();
     },

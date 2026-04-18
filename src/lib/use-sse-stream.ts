@@ -43,6 +43,10 @@ export async function parseSSEStream<TResults>(
         callbacks.onSummaryChunk(event.text, summaryText);
       }
 
+      if (event.error) {
+        callbacks.onError(event.error);
+      }
+
       if (event.type === SSE_EVENT.RESULTS) {
         callbacks.onResults(event.message ?? '', (event.results ?? []) as TResults[], event.condText);
       }

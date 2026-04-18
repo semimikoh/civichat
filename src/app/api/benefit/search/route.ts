@@ -58,6 +58,9 @@ export async function POST(request: Request) {
         controller.enqueue(encoder.encode(data));
       };
 
+      // 검색 결과를 먼저 전송 → 카드가 즉시 표시됨
+      enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.RESULTS, message: response.message, results: response.results, condText: response.condText })}\n\n`);
+
       if (response.results && response.results.length > 0) {
         try {
           const summaryStream = await summarizeResultsStream(
@@ -80,8 +83,6 @@ export async function POST(request: Request) {
           enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.SUMMARY_DONE, error: '요약 생성 중 오류가 발생했습니다.' })}\n\n`);
         }
       }
-
-      enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.RESULTS, message: response.message, results: response.results, condText: response.condText })}\n\n`);
 
       if (!cancelled) controller.close();
     },

@@ -415,6 +415,11 @@ function extractPreviousConditions(history: ConversationMessage[]): ExtractedCon
   for (const msg of history) {
     if (msg.role !== 'user') continue;
     const text = msg.content;
+    // reset 메시지를 만나면 이전 조건을 모두 버리고 이후만 누적
+    if (shouldResetConditions(text)) {
+      Object.assign(merged, emptyConditions());
+      continue;
+    }
     const age = extractAge(text);
     if (age !== null) merged.age = age;
     const gender = extractGender(text);
@@ -448,11 +453,27 @@ function extractPreviousConditions(history: ConversationMessage[]): ExtractedCon
   return merged;
 }
 
+// --- 조건 초기화 감지 ---
+const RESET_PATTERNS = /^(초기화|리셋|reset|다시\s*검색|새로\s*검색|처음부터)/i;
+
+function shouldResetConditions(text: string): boolean {
+  return RESET_PATTERNS.test(text.trim());
+}
+
 // --- 메인: 코드 기반 분석 ---
 export function analyzeQuery(
   userQuery: string,
   history: ConversationMessage[],
 ): AnalysisResult {
+  // 조건 초기화 감지
+  if (shouldResetConditions(userQuery)) {
+    return {
+      action: 'ask',
+      conditions: emptyConditions(),
+      followUpQuestion: '조건을 초기화했어요! 어떤 혜택을 찾고 계신가요?',
+    };
+  }
+
   // 이전 대화에서 조건 복원
   const prev = extractPreviousConditions(history);
 

@@ -58,9 +58,9 @@ CiviChat은 검색창 대신 대화형 인터페이스를 통해
 
 | 영역       | 기술                                     | 선택 이유                                        |
 | ---------- | ---------------------------------------- | ------------------------------------------------ |
-| 프레임워크 | Next.js 15 (App Router)                  | RSC + API Route로 프론트/백엔드 통합             |
+| 프레임워크 | Next.js 16 (App Router)                  | RSC + API Route로 프론트/백엔드 통합             |
 | 언어       | TypeScript (strict)                      | 타입 안전성 + 런타임 에러 방지                   |
-| UI         | Mantine v7                               | 시맨틱 컴포넌트 + 다크모드 + 반응형              |
+| UI         | Mantine v9                               | 시맨틱 컴포넌트 + 다크모드 + 반응형              |
 | 벡터 DB    | Supabase (pgvector + HNSW)               | 별도 벡터 DB 인프라 없이 RDB + 벡터 검색 통합    |
 | 임베딩     | OpenAI text-embedding-3-small (1536차원) | 비용 효율 + 한국어 성능                          |
 | LLM 요약   | GPT-4o-mini (SSE 스트리밍)               | 검색 결과를 쉬운 말로 요약                       |

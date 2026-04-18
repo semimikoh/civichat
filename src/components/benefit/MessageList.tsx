@@ -71,7 +71,7 @@ function AssistantMessage({ msg, onAnimationDone }: AssistantMessageProps) {
           {visibleContent}
         </Text>
       )}
-      {hasResults && summaryDone && (
+      {hasResults && (
         <StaggeredResults
           results={msg.results!}
           condText={msg.condText}

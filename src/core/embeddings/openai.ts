@@ -46,7 +46,30 @@ async function embedBatchWithRetry(client: OpenAI, batch: string[]): Promise<num
   throw new Error('임베딩 재시도 횟수 초과');
 }
 
-/** 텍스트 배열을 배치로 임베딩 생성 */
+// --- LRU 캐시 (검색 쿼리 임베딩용, 서버 메모리) ---
+const CACHE_MAX = 256;
+const embeddingCache = new Map<string, number[]>();
+
+/** LRU 갱신: 접근된 항목을 Map 맨 뒤로 이동 */
+function accessCachedEmbedding(text: string): number[] | undefined {
+  const cached = embeddingCache.get(text);
+  if (cached) {
+    // LRU: 접근 시 맨 뒤로 이동
+    embeddingCache.delete(text);
+    embeddingCache.set(text, cached);
+  }
+  return cached;
+}
+
+function setCachedEmbedding(text: string, embedding: number[]) {
+  if (embeddingCache.size >= CACHE_MAX) {
+    const oldest = embeddingCache.keys().next().value;
+    if (oldest !== undefined) embeddingCache.delete(oldest);
+  }
+  embeddingCache.set(text, embedding);
+}
+
+/** 텍스트 배열을 배치로 임베딩 생성 (캐시 없음, CLI 배치 작업용) */
 export async function embedTexts(texts: string[]): Promise<number[][]> {
   const client = getOpenAIClient();
   const allEmbeddings: number[][] = [];
@@ -62,6 +85,16 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
   }
 
   return allEmbeddings;
+}
+
+/** 단일 검색 쿼리 임베딩 (LRU 캐시 적용) */
+export async function embedQuery(text: string): Promise<number[]> {
+  const cached = accessCachedEmbedding(text);
+  if (cached) return cached;
+
+  const [embedding] = await embedTexts([text]);
+  setCachedEmbedding(text, embedding);
+  return embedding;
 }
 
 export { MODEL, DIMENSIONS, BATCH_SIZE };
