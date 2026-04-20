@@ -88,6 +88,31 @@ type BenefitRpcParams = {
 
 const REGION_NATIONWIDE_PATTERN = /전국|공통|중앙|보건복지부|고용노동부|여성가족부|국토교통부|중소벤처기업부/;
 const CLOSED_PATTERN = /마감|종료|폐지|중단|만료/;
+const MIN_REGIONAL_CANDIDATES = 120;
+const MIN_BROAD_CANDIDATES = 80;
+
+const INTENT_RULES: { queryPattern: RegExp; textPattern: RegExp }[] = [
+  { queryPattern: /취업|구직|일자리|고용|채용|직업|면접|취준/, textPattern: /취업|구직|일자리|고용|채용|직업|면접|자격|일경험/ },
+  { queryPattern: /교통비|교통|이동|택시/, textPattern: /교통|이동|택시|교통비/ },
+  { queryPattern: /의료비|의료|병원|건강|진료|치료비/, textPattern: /의료|병원|건강|진료|치료|입원|유급병가/ },
+  { queryPattern: /주거|주택|전세|월세|임대|무주택|이사/, textPattern: /주거|주택|전세|월세|임대|임차|보증금|이사|중개/ },
+  { queryPattern: /창업|사업|자영|소상공인|경영|대출|융자/, textPattern: /창업|사업|자영|소상공인|경영|대출|융자|자금|고용보험/ },
+  { queryPattern: /교육비|교육|학비|장학|입학/, textPattern: /교육|학비|장학|입학|통학|학생/ },
+  { queryPattern: /돌봄|요양|간병/, textPattern: /돌봄|요양|간병|보호/ },
+  { queryPattern: /에너지|바우처|난방|전기|가스/, textPattern: /에너지|바우처|난방|전기|가스|공동관리비|태양광/ },
+  { queryPattern: /양육비|양육|보육|아동|아이|자녀/, textPattern: /양육|보육|아동|아이|자녀|돌봄/ },
+];
+
+const TARGET_RULES: { queryPattern: RegExp; textPattern: RegExp }[] = [
+  { queryPattern: /청년|취준생|20대|30대/, textPattern: /청년|대학생|미취업/ },
+  { queryPattern: /다문화|이주|외국인/, textPattern: /다문화|이주|외국인|결혼이민/ },
+  { queryPattern: /한부모|싱글맘|싱글대디|미혼모|미혼부/, textPattern: /한부모|미혼모|미혼부/ },
+  { queryPattern: /임산부|임신|산모|출산/, textPattern: /임산부|임신|산모|출산/ },
+  { queryPattern: /장애/, textPattern: /장애/ },
+  { queryPattern: /보훈|국가유공/, textPattern: /보훈|국가유공/ },
+  { queryPattern: /신혼|신혼부부|결혼\s*예정/, textPattern: /신혼|부부|혼인|출산가구/ },
+  { queryPattern: /노인|어르신|고령|70대|60대/, textPattern: /노인|어르신|고령|요양/ },
+];
 
 function tokenizeQuery(userQuery: string, conditions: ExtractedConditions): string[] {
   const words = userQuery
@@ -139,6 +164,43 @@ function calcConditionBoost(result: SearchResult, conditions: ExtractedCondition
   return score;
 }
 
+function calcIntentBoost(result: SearchResult, userQuery: string): number {
+  const text = [
+    result.serviceName,
+    result.servicePurpose,
+    result.targetAudience,
+    result.selectionCriteria,
+    result.supportContent,
+    result.supportType,
+  ].join(' ');
+
+  let score = 0;
+  for (const rule of INTENT_RULES) {
+    if (!rule.queryPattern.test(userQuery)) continue;
+    score += rule.textPattern.test(text) ? 0.18 : -0.12;
+  }
+
+  return score;
+}
+
+function calcTargetBoost(result: SearchResult, userQuery: string): number {
+  const text = [
+    result.serviceName,
+    result.servicePurpose,
+    result.targetAudience,
+    result.selectionCriteria,
+    result.supportContent,
+  ].join(' ');
+
+  let score = 0;
+  for (const rule of TARGET_RULES) {
+    if (!rule.queryPattern.test(userQuery)) continue;
+    score += rule.textPattern.test(text) ? 0.08 : -0.03;
+  }
+
+  return score;
+}
+
 function applyRelevanceRerank(
   results: SearchResult[],
   userQuery: string,
@@ -159,8 +221,10 @@ function applyRelevanceRerank(
     const keywordBoost = Math.min(nameMatches * 0.08 + bodyMatches * 0.025, 0.22);
     const regionBoost = calcRegionBoost(result, conditions);
     const conditionBoost = calcConditionBoost(result, conditions);
+    const intentBoost = calcIntentBoost(result, userQuery);
+    const targetBoost = calcTargetBoost(result, userQuery);
     const closedPenalty = CLOSED_PATTERN.test(`${result.applicationDeadline} ${result.serviceName}`) ? -0.08 : 0;
-    const finalScore = result.similarity + keywordBoost + regionBoost + conditionBoost + closedPenalty;
+    const finalScore = result.similarity + keywordBoost + regionBoost + conditionBoost + intentBoost + targetBoost + closedPenalty;
 
     return {
       ...result,
@@ -316,7 +380,7 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
     ...baseRpcParams,
     region_filter: conditions.region,
     province_filter: conditions.regionProvince,
-    match_count: matchCount * 8,
+    match_count: Math.max(matchCount * 8, MIN_REGIONAL_CANDIDATES),
   });
 
   const broadRows = conditions.region
@@ -324,7 +388,7 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
       ...baseRpcParams,
       region_filter: null,
       province_filter: null,
-      match_count: matchCount * 4,
+      match_count: Math.max(matchCount * 4, MIN_BROAD_CANDIDATES),
     })
     : [];
 

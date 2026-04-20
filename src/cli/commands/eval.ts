@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { searchBenefits } from '@/core/benefit/search';
-import { EVAL_QUERIES, type EvalQuery } from '@/core/benefit/eval-queries';
+import { EVAL_QUERIES, evaluateBenefitResults, type EvalQuery } from '@/core/benefit/eval-queries';
 
 interface EvalResult {
   query: string;
@@ -8,28 +8,6 @@ interface EvalResult {
   matchedAt: number | null;
   topResults: string[];
   reason?: string;
-}
-
-function checkHit(serviceNames: string[], keywords: string[]): number | null {
-  for (let i = 0; i < serviceNames.length; i++) {
-    const name = serviceNames[i].toLowerCase();
-    if (keywords.some((kw) => name.includes(kw.toLowerCase()))) {
-      return i + 1;
-    }
-  }
-  return null;
-}
-
-function checkExclude(serviceNames: string[], keywords: string[]): string | null {
-  for (const name of serviceNames) {
-    const lower = name.toLowerCase();
-    for (const kw of keywords) {
-      if (lower.includes(kw.toLowerCase())) {
-        return `"${name}"에 제외 키워드 "${kw}" 포함`;
-      }
-    }
-  }
-  return null;
 }
 
 async function evaluateQuery(eq: EvalQuery, topK: number): Promise<EvalResult> {
@@ -41,22 +19,16 @@ async function evaluateQuery(eq: EvalQuery, topK: number): Promise<EvalResult> {
       return { query: eq.query, pass: false, matchedAt: null, topResults, reason: '질문 모드 진입 (검색 미실행)' };
     }
 
-    const names = (res.results ?? []).map((r) => r.serviceName);
+    const results = res.results ?? [];
+    const names = results.map((r) => r.serviceName);
     topResults.push(...names);
 
-    const hitAt = checkHit(names, eq.mustIncludeKeywords);
-    if (hitAt === null) {
-      return { query: eq.query, pass: false, matchedAt: null, topResults, reason: `키워드 [${eq.mustIncludeKeywords.join(', ')}] 미포함` };
+    const match = evaluateBenefitResults(eq, results);
+    if (match.matchedAt === null) {
+      return { query: eq.query, pass: false, matchedAt: null, topResults, reason: match.reason };
     }
 
-    if (eq.mustExcludeKeywords) {
-      const excludeReason = checkExclude(names, eq.mustExcludeKeywords);
-      if (excludeReason) {
-        return { query: eq.query, pass: false, matchedAt: hitAt, topResults, reason: excludeReason };
-      }
-    }
-
-    return { query: eq.query, pass: true, matchedAt: hitAt, topResults };
+    return { query: eq.query, pass: true, matchedAt: match.matchedAt, topResults };
   } catch (err) {
     return { query: eq.query, pass: false, matchedAt: null, topResults, reason: `에러: ${err instanceof Error ? err.message : String(err)}` };
   }

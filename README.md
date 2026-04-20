@@ -136,14 +136,16 @@ src/
 ├── components/          # React 컴포넌트
 │   ├── benefit/         #   ChatContainer, MessageList, BenefitCard, StaggeredResults
 │   ├── legal/           #   ChatContainer, LawArticleCard (아코디언)
+│   ├── shared/          #   ChatInput, SkipLink (공유 컴포넌트)
 │   ├── home/            #   TabNav
 │   └── providers/       #   Mantine Provider 래퍼
 │
 └── lib/
     ├── text-layout/     #   자체 텍스트 측정 모듈 (O(log n) 줄바꿈)
+    ├── parse-sse-stream.ts #  SSE 스트림 파싱 유틸
+    ├── safe-url.ts      #   URL 스킴 검증 (http/https만 허용)
     ├── sentry.ts        #   API Route 에러 수집 래퍼
     ├── use-chat-search-stream.ts # 복지/법령 공통 검색 스트림 훅
-    ├── use-sse-stream.ts #  SSE 스트림 파싱 유틸
     └── use-typewriter.ts #  어절 단위 타이프라이터 훅
 ```
 
@@ -187,7 +189,7 @@ Canvas 기반 워드프로세서 개발 경험([블로그 글](https://velog.io/
   |
   v
 조건 추출 (코드 기반, LLM 호출 없음)
-  -> age: 26, occupation: "구직자", region: "서울"
+  -> age: 26, occupation: "구직자/실업자", region: "서울"
   -> 대화 히스토리에서 이전 조건 누적 (멀티턴)
   -> 조건 부족 시 추가 질문 반환 ("성별도 알려주시면 더 정확해요!")
   |
@@ -207,7 +209,9 @@ POST /api/benefit/search (SSE 스트리밍)
   |     4. 키워드 부스트: 쿼리/추출 키워드와 서비스명/본문 매칭
   |     5. 지역 부스트: 시군구/광역시도/전국형 서비스 반영
   |     6. 조건 부스트: 구직자, 임산부, 소상공인, 한부모, 저소득, 신혼 등 대상 매칭
-  |     7. 마감/종료 서비스 감점
+  |     7. 의도 부스트: 쿼리 의도(취업/주거/의료 등)와 서비스 내용 매칭/불일치 반영
+  |     8. 대상 부스트: 쿼리 대상(청년/다문화/장애 등)과 서비스 대상 매칭/불일치 반영
+  |     9. 마감/종료 서비스 감점
   |
   v
 검색 결과 이벤트 선전송 -> LLM 요약 스트리밍 (gpt-4o-mini) -> 결과 카드 표시
@@ -238,7 +242,7 @@ LLM 호출 없이 정규식 기반으로 조건을 즉시 추출합니다:
 "26살 여자 대학생인데 서울 혜택"
   -> age: 26          // "26살" 패턴 매칭
   -> gender: "여성"    // "여자" -> 여성 매핑
-  -> occupation: "대학생" // 주요 직업/상태 레이블 매칭
+  -> occupation: "대학생/대학원생" // 주요 직업/상태 레이블 매칭
   -> region: "서울특별시" // 광역시도 매핑
   -> keywords: ["혜택"]
 ```
@@ -266,6 +270,8 @@ finalScore =
   + keywordBoost       // 서비스명/본문 키워드 매칭
   + regionBoost        // 시군구/광역시도/전국형 서비스
   + conditionBoost     // 대상 조건 매칭
+  + intentBoost        // 쿼리 의도(취업/주거/의료 등) 매칭
+  + targetBoost        // 쿼리 대상(청년/다문화/장애 등) 매칭
   + closedPenalty;     // 마감/종료 감점
 ```
 

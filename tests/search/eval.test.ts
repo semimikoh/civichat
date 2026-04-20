@@ -7,31 +7,13 @@
  * 로컬: pnpm test:search-quality
  */
 import { config } from 'dotenv';
-import { EVAL_QUERIES } from '@/core/benefit/eval-queries';
+import { EVAL_QUERIES, evaluateBenefitResults } from '@/core/benefit/eval-queries';
 import { searchBenefits } from '@/core/benefit/search';
 
 config({ path: '.env.local' });
 
 const TOP_K = 5;
-const MIN_PASS_RATE = 0.6; // 60% 이상 통과해야 전체 테스트 통과
-
-function hasHit(serviceNames: string[], keywords: string[]): boolean {
-  return serviceNames.some((name) =>
-    keywords.some((kw) => name.toLowerCase().includes(kw.toLowerCase())),
-  );
-}
-
-function checkExclude(serviceNames: string[], keywords: string[]): string | null {
-  for (const name of serviceNames) {
-    const lower = name.toLowerCase();
-    for (const kw of keywords) {
-      if (lower.includes(kw.toLowerCase())) {
-        return `"${name}"에 제외 키워드 "${kw}" 포함`;
-      }
-    }
-  }
-  return null;
-}
+const MIN_PASS_RATE = 0.8; // 의미 단위 키워드 그룹 기준 80% 이상 통과
 
 // 환경변수가 없으면 테스트 스킵
 const hasEnv = Boolean(process.env.OPENAI_API_KEY && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -48,21 +30,12 @@ describe.skipIf(!hasEnv)('검색 품질 평가', () => {
         continue;
       }
 
-      const names = (res.results ?? []).map((r) => r.serviceName);
-      if (!hasHit(names, eq.mustIncludeKeywords)) {
-        results.push({ query: eq.query, pass: false, reason: `키워드 [${eq.mustIncludeKeywords.join(', ')}] 미포함` });
-        continue;
-      }
-
-      if (eq.mustExcludeKeywords) {
-        const excludeReason = checkExclude(names, eq.mustExcludeKeywords);
-        if (excludeReason) {
-          results.push({ query: eq.query, pass: false, reason: excludeReason });
-          continue;
-        }
-      }
-
-      results.push({ query: eq.query, pass: true });
+      const match = evaluateBenefitResults(eq, res.results ?? []);
+      results.push({
+        query: eq.query,
+        pass: match.matchedAt !== null,
+        reason: match.reason,
+      });
     }
 
     const passed = results.filter((r) => r.pass).length;
