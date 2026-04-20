@@ -11,22 +11,40 @@ export const GENDER_PATTERNS: [RegExp, '남성' | '여성'][] = [
   [/남성|남자|아빠/, '남성'],
 ];
 
+// --- 직업/상태 라벨 상수 ---
+export const OccupationLabel = {
+  JOB_SEEKER: '구직자/실업자',
+  COLLEGE_STUDENT: '대학생/대학원생',
+  HIGH_SCHOOL: '고등학생',
+  MIDDLE_SCHOOL: '중학생',
+  ELEMENTARY: '초등학생',
+  WORKER: '근로자/직장인',
+  FARMER: '농업인',
+  FISHER: '어업인',
+  PREGNANT: '임산부',
+  DISABLED: '장애인',
+  VETERAN: '국가보훈대상자',
+  PRE_ENTREPRENEUR: '예비창업자',
+  SMALL_BUSINESS: '소상공인/자영업자',
+  SINGLE_PARENT: '한부모가정/조손가정',
+} as const;
+
 // --- 직업/상태 ---
 export const OCCUPATION_PATTERNS: [RegExp, string][] = [
-  [/무직|미취업|실업|구직|백수|취준|취업\s*준비|취준생/, '구직자/실업자'],
-  [/대학생|대학원생/, '대학생/대학원생'],
-  [/고등학생|고딩/, '고등학생'],
-  [/중학생/, '중학생'],
-  [/초등학생/, '초등학생'],
-  [/직장인|회사원|근로자|직장/, '근로자/직장인'],
-  [/농업|농민|농부/, '농업인'],
-  [/어업|어부/, '어업인'],
-  [/임산부|임신/, '임산부'],
-  [/장애인/, '장애인'],
-  [/국가유공|보훈/, '국가보훈대상자'],
-  [/창업|예비\s*창업/, '예비창업자'],
-  [/소상공인|자영업|자영업자|개인\s*사업|사업자|가게|점포/, '소상공인/자영업자'],
-  [/한부모|싱글맘|싱글대디|미혼모|미혼부/, '한부모가족'],
+  [/무직|미취업|실업|구직|백수|취준|취업\s*준비|취준생/, OccupationLabel.JOB_SEEKER],
+  [/대학생|대학원생/, OccupationLabel.COLLEGE_STUDENT],
+  [/고등학생|고딩/, OccupationLabel.HIGH_SCHOOL],
+  [/중학생/, OccupationLabel.MIDDLE_SCHOOL],
+  [/초등학생/, OccupationLabel.ELEMENTARY],
+  [/직장인|회사원|근로자|직장/, OccupationLabel.WORKER],
+  [/농업|농민|농부/, OccupationLabel.FARMER],
+  [/어업|어부/, OccupationLabel.FISHER],
+  [/임산부|임신/, OccupationLabel.PREGNANT],
+  [/장애인/, OccupationLabel.DISABLED],
+  [/국가유공|보훈/, OccupationLabel.VETERAN],
+  [/창업|예비\s*창업/, OccupationLabel.PRE_ENTREPRENEUR],
+  [/소상공인|자영업|자영업자|개인\s*사업|사업자|가게|점포/, OccupationLabel.SMALL_BUSINESS],
+  [/한부모|싱글맘|싱글대디|미혼모|미혼부/, OccupationLabel.SINGLE_PARENT],
 ];
 
 // --- 결혼 상태 ---

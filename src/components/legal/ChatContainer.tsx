@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { ActionIcon, Box, Button, Container, Stack, Group, TextInput, Title, Text, Center, Loader, Paper } from '@mantine/core';
+import { useCallback } from 'react';
+import { Box, Button, Container, Stack, Group, Title, Text, Center, Loader, Paper } from '@mantine/core';
 import Markdown from 'react-markdown';
 import { LawArticleList } from '@/components/legal/LawArticleCard';
 import { useTypewriter } from '@/lib/use-typewriter';
@@ -9,6 +9,8 @@ import { useMessageVirtualizer } from '@/lib/text-layout/use-message-height';
 import { USER_BUBBLE_WIDTH_RATIO, ASSISTANT_BUBBLE_WIDTH_RATIO, LAW_ACCORDION_COLLAPSED_HEIGHT, CARD_GAP } from '@/lib/text-layout/prepared';
 import type { LawSearchResult } from '@/core/legal/search';
 import { useChatSearchStream, type BaseChatMessage } from '@/lib/use-chat-search-stream';
+import { ChatInput } from '@/components/shared/ChatInput';
+import { SkipLink } from '@/components/shared/SkipLink';
 
 function EmptyState() {
   return (
@@ -65,55 +67,6 @@ function AssistantMessage({ msg }: { msg: LawChatMessage }) {
   );
 }
 
-function ChatInput({ onSubmit, disabled }: { onSubmit: (msg: string) => void; disabled?: boolean }) {
-  const [value, setValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!disabled) inputRef.current?.focus();
-  }, [disabled]);
-
-  const handleSubmit = () => {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    onSubmit(trimmed);
-    setValue('');
-    inputRef.current?.focus();
-  };
-
-  return (
-    <form
-      onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
-      id="legal-chat-input"
-      role="search"
-      aria-label="법령 검색"
-    >
-      <Group gap="xs">
-        <TextInput
-          ref={inputRef}
-          flex={1}
-          placeholder="어떤 법령을 찾고 계신가요?"
-          value={value}
-          onChange={(e) => setValue(e.currentTarget.value)}
-          disabled={disabled}
-          size="md"
-          aria-label="검색어 입력"
-          autoFocus
-        />
-        <ActionIcon
-          type="submit"
-          size="input-md"
-          variant="filled"
-          disabled={disabled || !value.trim()}
-          aria-label="검색"
-        >
-          &rarr;
-        </ActionIcon>
-      </Group>
-    </form>
-  );
-}
-
 export function ChatContainer() {
   const buildBody = useCallback((query: string) => {
     return { query, count: 10 };
@@ -139,26 +92,7 @@ export function ChatContainer() {
 
   return (
     <Container size="xs" h="100%" py="md" role="main" aria-label="CiviChat 법령 검색" aria-busy={isInputDisabled}>
-      <a href="#legal-chat-input" style={{
-        position: 'absolute', left: '-9999px', top: 'auto', width: '1px', height: '1px', overflow: 'hidden',
-        zIndex: 100,
-      }} onFocus={(e) => {
-        e.currentTarget.style.left = '16px';
-        e.currentTarget.style.top = '16px';
-        e.currentTarget.style.width = 'auto';
-        e.currentTarget.style.height = 'auto';
-        e.currentTarget.style.padding = '8px 16px';
-        e.currentTarget.style.background = 'var(--mantine-color-blue-6)';
-        e.currentTarget.style.color = '#fff';
-        e.currentTarget.style.borderRadius = '4px';
-        e.currentTarget.style.fontSize = '14px';
-        e.currentTarget.style.textDecoration = 'none';
-      }} onBlur={(e) => {
-        e.currentTarget.style.left = '-9999px';
-        e.currentTarget.style.width = '1px';
-        e.currentTarget.style.height = '1px';
-        e.currentTarget.style.padding = '0';
-      }}>검색 입력으로 건너뛰기</a>
+      <SkipLink href="#legal-chat-input" />
       <Stack h="100%" gap="md">
         <header>
           <Group gap="xs" align="baseline">
@@ -259,7 +193,13 @@ export function ChatContainer() {
             </Button>
           </Center>
         )}
-        <ChatInput onSubmit={handleSubmit} disabled={isInputDisabled} />
+        <ChatInput
+          onSubmit={handleSubmit}
+          disabled={isInputDisabled}
+          placeholder="어떤 법령을 찾고 계신가요?"
+          formId="legal-chat-input"
+          formAriaLabel="법령 검색"
+        />
       </Stack>
     </Container>
   );

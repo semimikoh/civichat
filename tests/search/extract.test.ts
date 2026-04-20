@@ -84,9 +84,9 @@ describe('analyzeQuery', () => {
       expect(r.conditions.keywords).toContain('소상공인');
     });
 
-    it('한부모 → 한부모가족', () => {
+    it('한부모 → 한부모가정/조손가정', () => {
       const r = analyzeQuery('인천 한부모 양육비 지원', []);
-      expect(r.conditions.occupation).toBe('한부모가족');
+      expect(r.conditions.occupation).toBe('한부모가정/조손가정');
       expect(r.conditions.keywords).toContain('한부모');
     });
 

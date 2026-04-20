@@ -301,13 +301,13 @@ function buildSearchQuery(conditions: ExtractedConditions, originalQuery: string
     parts.push(originalQuery);
   }
 
-  if (conditions.occupation === '구직자/실업자') {
+  if (conditions.occupation === Patterns.OccupationLabel.JOB_SEEKER) {
     parts.push('미취업 청년 구직활동 지원');
-  } else if (conditions.occupation === '임산부') {
+  } else if (conditions.occupation === Patterns.OccupationLabel.PREGNANT) {
     parts.push('임산부 임신 출산 지원');
-  } else if (conditions.occupation === '소상공인/자영업자') {
+  } else if (conditions.occupation === Patterns.OccupationLabel.SMALL_BUSINESS) {
     parts.push('소상공인 자영업 사업 대출 경영 지원');
-  } else if (conditions.occupation === '한부모가족') {
+  } else if (conditions.occupation === Patterns.OccupationLabel.SINGLE_PARENT) {
     parts.push('한부모 가족 양육비 돌봄 지원');
   } else if (conditions.occupation) {
     parts.push(conditions.occupation, '지원');

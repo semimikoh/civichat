@@ -6,9 +6,18 @@ import { useRef, useState, useEffect } from 'react';
 interface ChatInputProps {
   onSubmit: (message: string) => void;
   disabled?: boolean;
+  placeholder?: string;
+  formId?: string;
+  formAriaLabel?: string;
 }
 
-export function ChatInput({ onSubmit, disabled }: ChatInputProps) {
+export function ChatInput({
+  onSubmit,
+  disabled,
+  placeholder = '어떤 혜택을 찾고 계신가요?',
+  formId = 'chat-input',
+  formAriaLabel = '검색',
+}: ChatInputProps) {
   const [value, setValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -30,15 +39,15 @@ export function ChatInput({ onSubmit, disabled }: ChatInputProps) {
         e.preventDefault();
         handleSubmit();
       }}
-      id="chat-input"
+      id={formId}
       role="search"
-      aria-label="복지 혜택 검색"
+      aria-label={formAriaLabel}
     >
       <Group gap="xs">
         <TextInput
           ref={inputRef}
           flex={1}
-          placeholder="어떤 혜택을 찾고 계신가요?"
+          placeholder={placeholder}
           value={value}
           onChange={(e) => setValue(e.currentTarget.value)}
           disabled={disabled}

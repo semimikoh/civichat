@@ -8,6 +8,7 @@ import {
   type ExtractedConditions,
   type ConversationMessage,
 } from '@/core/benefit/extract';
+import { OccupationLabel, LOW_INCOME_ANNUAL } from '@/core/benefit/extract-patterns';
 export { summarizeResults } from '@/core/benefit/summarize';
 export type { ConversationMessage } from '@/core/benefit/extract';
 
@@ -125,13 +126,13 @@ function calcConditionBoost(result: SearchResult, conditions: ExtractedCondition
   let score = 0;
 
   if (conditions.occupation && text.includes(conditions.occupation.split('/')[0])) score += 0.08;
-  if (conditions.occupation === '구직자/실업자' && /미취업|구직|취업|일자리|청년/.test(text)) score += 0.1;
-  if (conditions.occupation === '임산부' && /임산부|임신|산모|출산/.test(text)) score += 0.12;
-  if (conditions.occupation === '소상공인/자영업자' && /소상공인|자영업|사업자|경영|창업/.test(text)) score += 0.12;
-  if (conditions.occupation === '한부모가족' && /한부모|양육|미혼모|미혼부/.test(text)) score += 0.12;
+  if (conditions.occupation === OccupationLabel.JOB_SEEKER && /미취업|구직|취업|일자리|청년/.test(text)) score += 0.1;
+  if (conditions.occupation === OccupationLabel.PREGNANT && /임산부|임신|산모|출산/.test(text)) score += 0.12;
+  if (conditions.occupation === OccupationLabel.SMALL_BUSINESS && /소상공인|자영업|사업자|경영|창업/.test(text)) score += 0.12;
+  if (conditions.occupation === OccupationLabel.SINGLE_PARENT && /한부모|양육|미혼모|미혼부/.test(text)) score += 0.12;
   if (conditions.maritalStatus === '신혼' && /신혼|부부|혼인|전세|주택/.test(text)) score += 0.1;
   if (conditions.housingType && text.includes(conditions.housingType)) score += 0.06;
-  if (conditions.income !== null && conditions.income <= 1800 && /저소득|기초생활|수급|차상위|중위소득/.test(text)) score += 0.1;
+  if (conditions.income !== null && conditions.income <= LOW_INCOME_ANNUAL && /저소득|기초생활|수급|차상위|중위소득/.test(text)) score += 0.1;
   if (conditions.age !== null && conditions.age < 40 && /청년|청소년|대학생/.test(text)) score += 0.06;
   if (conditions.age !== null && conditions.age >= 60 && /노인|어르신|고령|시니어/.test(text)) score += 0.1;
 
@@ -300,9 +301,7 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
 
   // 2. 하이브리드 검색 실행 (벡터 + 키워드 + RRF)
   const conditions = analysis.conditions;
-  const searchText = conditions.region
-    ? conditions.keywords.join(' ') || conditions.searchQuery
-    : conditions.searchQuery;
+  const searchText = conditions.searchQuery;
   const queryEmbedding = await embedQuery(searchText);
 
   const supabase = getSupabaseClient();

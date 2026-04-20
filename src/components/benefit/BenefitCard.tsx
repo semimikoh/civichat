@@ -2,6 +2,7 @@
 
 import { Card, Text, Badge, Group, Stack, ActionIcon, Divider } from '@mantine/core';
 import type { SearchResult } from '@/core/benefit/search';
+import { getSafeUrl } from '@/lib/safe-url';
 
 interface BenefitCardProps {
   result: SearchResult;
@@ -20,7 +21,7 @@ function LinkIcon() {
 }
 
 export function BenefitCard({ result, index, condText }: BenefitCardProps) {
-  const linkUrl = result.detailUrl || result.onlineApplicationUrl;
+  const linkUrl = getSafeUrl(result.detailUrl) ?? getSafeUrl(result.onlineApplicationUrl);
   const matchTags = condText ? condText.split(' / ').filter(Boolean) : [];
 
   return (

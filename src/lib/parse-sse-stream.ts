@@ -1,5 +1,3 @@
-'use client';
-
 import { SSE_EVENT, type SSEEvent } from '@/core/types/sse';
 
 export interface SSEStreamCallbacks<TResults> {
@@ -45,6 +43,7 @@ export async function parseSSEStream<TResults>(
 
       if (event.error) {
         callbacks.onError(event.error);
+        continue;
       }
 
       if (event.type === SSE_EVENT.RESULTS) {

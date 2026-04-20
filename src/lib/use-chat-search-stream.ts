@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { parseSSEStream } from '@/lib/use-sse-stream';
+import { parseSSEStream } from '@/lib/parse-sse-stream';
 
 export interface BaseChatMessage<TResult = unknown> {
   role: 'user' | 'assistant';

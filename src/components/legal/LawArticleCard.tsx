@@ -4,6 +4,7 @@ import { type ReactNode } from 'react';
 import { Accordion, Text, Badge, Group, Stack, ActionIcon, Box, Mark, Card } from '@mantine/core';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import type { LawSearchResult } from '@/core/legal/search';
+import { getSafeUrl } from '@/lib/safe-url';
 
 interface LawArticleListProps {
   results: LawSearchResult[];
@@ -78,11 +79,11 @@ export function LawArticleList({ results, query }: LawArticleListProps) {
                     {highlightText(r.articleContent, query)}
                   </Text>
                 </Box>
-                {r.sourceUrl && (
+                {getSafeUrl(r.sourceUrl) && (
                   <Group gap="xs">
                     <ActionIcon
                       component="a"
-                      href={r.sourceUrl}
+                      href={getSafeUrl(r.sourceUrl)!}
                       target="_blank"
                       rel="noopener noreferrer"
                       variant="subtle"
@@ -93,7 +94,7 @@ export function LawArticleList({ results, query }: LawArticleListProps) {
                     </ActionIcon>
                     <Text
                       component="a"
-                      href={r.sourceUrl}
+                      href={getSafeUrl(r.sourceUrl)!}
                       target="_blank"
                       rel="noopener noreferrer"
                       size="xs"
