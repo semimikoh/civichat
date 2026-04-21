@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { Analytics } from '@vercel/analytics/next';
 import { Box, Container , ColorSchemeScript } from '@mantine/core';
 import { Providers } from '@/components/providers/Providers';
 import { TabNav } from '@/components/home/TabNav';
@@ -35,6 +36,7 @@ export default function RootLayout({
             </Box>
           </Box>
         </Providers>
+        <Analytics />
       </body>
     </html>
   );
