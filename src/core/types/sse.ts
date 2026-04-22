@@ -13,6 +13,7 @@ export interface SSEEvent<TResults = unknown> {
   type: SSEEventType;
   message?: string;
   results?: TResults[];
+  query?: string;
   text?: string;
   error?: string;
   /** 복지 검색: 추출된 조건 텍스트 (예: "26세 / 서울 / 구직자") */

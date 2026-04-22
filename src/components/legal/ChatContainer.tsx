@@ -68,8 +68,15 @@ function AssistantMessage({ msg }: { msg: LawChatMessage }) {
 }
 
 export function ChatContainer() {
-  const buildBody = useCallback((query: string) => {
-    return { query, count: 10 };
+  const buildBody = useCallback((query: string, msgs: { role: string; content: string; loading?: boolean }[]) => {
+    const history = msgs
+      .filter((msg) => !msg.loading)
+      .map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+    return { query, count: 10, history };
   }, []);
 
   const calcExtraHeight = useCallback((results: LawSearchResult[]) => {

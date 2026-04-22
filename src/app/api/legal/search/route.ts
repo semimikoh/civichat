@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ConversationMessage } from '@/core/legal/search';
 import { searchLawArticles } from '@/core/legal/search';
 import { summarizeLawResultsStream } from '@/core/legal/summarize';
 import { SSE_EVENT } from '@/core/types/sse';
@@ -7,6 +8,10 @@ import { captureError } from '@/lib/sentry';
 const searchSchema = z.object({
   query: z.string().trim().min(1).max(500),
   count: z.number().int().min(1).max(20).optional().default(10),
+  history: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string().max(2000),
+  })).max(20).optional().default([]),
 });
 
 export async function POST(request: Request) {
@@ -25,11 +30,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const { query, count } = parsed.data;
+  const { query, count, history } = parsed.data;
 
   let response;
   try {
-    response = await searchLawArticles({ query, matchCount: count });
+    response = await searchLawArticles({
+      query,
+      history: history as ConversationMessage[],
+      matchCount: count,
+    });
   } catch (err) {
     captureError(err, { query, source: 'legal-search' });
     return Response.json(
@@ -48,11 +57,11 @@ export async function POST(request: Request) {
       };
 
       // 검색 결과를 먼저 전송 → 카드가 즉시 표시됨
-      enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.RESULTS, message: response.message, results: response.results })}\n\n`);
+      enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.RESULTS, message: response.message, results: response.results, query: response.query })}\n\n`);
 
       if (response.results.length > 0) {
         try {
-          const summaryStream = await summarizeLawResultsStream(query, response.results);
+          const summaryStream = await summarizeLawResultsStream(response.query, response.results);
 
           for await (const chunk of summaryStream) {
             if (cancelled) break;

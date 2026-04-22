@@ -106,7 +106,7 @@ export function useChatSearchStream<TResult>(options: UseChatSearchStreamOptions
             return updated;
           });
         },
-        onResults(message, results, condText) {
+        onResults(message, results, condText, effectiveQuery) {
           onResultsReceived?.();
           setMessages((prev) => {
             const updated = [...prev];
@@ -118,7 +118,7 @@ export function useChatSearchStream<TResult>(options: UseChatSearchStreamOptions
                 content: message,
                 results,
                 condText: condText ?? '',
-                query,
+                query: effectiveQuery ?? query,
                 extraHeight: calcExtraHeight(results),
               };
             }
