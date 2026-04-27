@@ -35,7 +35,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Fetch benefit data
-        run: pnpm cli fetch
+        run: pnpm cli fetch list && pnpm cli fetch details && pnpm cli fetch conditions
       - name: Embed benefit data
         run: pnpm cli embed
 
@@ -52,6 +52,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Fetch legal data
-        run: pnpm cli legal-fetch
+        run: pnpm cli legal-fetch parse
       - name: Embed legal data
         run: pnpm cli legal-embed
