@@ -3,17 +3,11 @@
 
 import { useRef, useCallback, useMemo, useEffect, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { estimateMessageHeight } from './prepared';
-import { createCache } from './cache';
+import { estimateMessageHeight } from '@/lib/text-layout/prepared';
+import { createCache } from '@/lib/text-layout/cache';
+import type { VirtualizableMessage } from '@/lib/text-layout/types';
 
-/** 복지/법령 공통 메시지 인터페이스 */
-export interface VirtualizableMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  summary?: string;
-  /** 도메인이 직접 계산한 추가 높이 (카드, 아코디언 등) */
-  extraHeight?: number;
-}
+export type { VirtualizableMessage };
 
 const MESSAGE_GAP = 12;
 const HEIGHT_CACHE_MAX = 500;

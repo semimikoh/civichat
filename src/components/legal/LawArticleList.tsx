@@ -3,7 +3,8 @@
 import { type ReactNode } from 'react';
 import { Accordion, Text, Badge, Group, Stack, ActionIcon, Box, Mark, Card } from '@mantine/core';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import type { LawSearchResult } from '@/core/legal/search';
+import { ExternalLinkIcon } from '@/components/shared/ExternalLinkIcon';
+import type { LawSearchResult } from '@/domains/legal';
 import { getSafeUrl } from '@/lib/safe-url';
 
 interface LawArticleListProps {
@@ -23,16 +24,6 @@ function highlightText(text: string, query?: string): ReactNode {
 
   return parts.map((part, i) =>
     pattern.test(part) ? <Mark key={i}>{part}</Mark> : part,
-  );
-}
-
-function LinkIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-      <polyline points="15 3 21 3 21 9" />
-      <line x1="10" y1="14" x2="21" y2="3" />
-    </svg>
   );
 }
 
@@ -90,7 +81,7 @@ export function LawArticleList({ results, query }: LawArticleListProps) {
                       size="sm"
                       aria-label={`${r.lawTitle} 법령 원문 보기 (새 창)`}
                     >
-                      <LinkIcon />
+                      <ExternalLinkIcon size={14} />
                     </ActionIcon>
                     <Text
                       component="a"

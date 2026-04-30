@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Command } from 'commander';
-import { getSupabaseClient } from '@/core/db/supabase';
+import { getOrCreateSupabaseClient } from '@/core/db/supabase';
 import { transformAllDetails } from '@/core/benefit/transform';
 import { transformCondition } from '@/core/benefit/conditions';
 import { embedTexts } from '@/core/embeddings/openai';
@@ -40,7 +40,7 @@ embedCommand
     console.log('임베딩 생성 완료');
 
     // 3. DB 적재
-    const supabase = getSupabaseClient();
+    const supabase = getOrCreateSupabaseClient();
     let inserted = 0;
 
     for (let i = 0; i < benefits.length; i += DB_CHUNK_SIZE) {
@@ -101,7 +101,7 @@ embedCommand
     console.log(`${rawConditions.length}건 지원조건 데이터 로드 완료`);
 
     const conditions = rawConditions.map(transformCondition);
-    const supabase = getSupabaseClient();
+    const supabase = getOrCreateSupabaseClient();
     let inserted = 0;
 
     for (let i = 0; i < conditions.length; i += DB_CHUNK_SIZE) {

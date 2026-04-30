@@ -4,7 +4,10 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Stack, Text, Card as MantineCard } from '@mantine/core';
 import { BenefitCard } from '@/components/benefit/BenefitCard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import type { SearchResult } from '@/core/benefit/search';
+import type { SearchResult } from '@/domains/benefit';
+
+const RESULT_STAGGER_INTERVAL_MS = 120;
+const RESULT_ENTER_ANIMATION = 'fadeSlideIn 0.3s ease-out';
 
 interface StaggeredResultsProps {
   results: SearchResult[];
@@ -17,6 +20,10 @@ interface RegionGroup {
   region: string;
   results: SearchResult[];
 }
+
+type FlatItem =
+  | { type: 'header'; region: string; key: string }
+  | { type: 'card'; result: SearchResult; globalIndex: number; key: string };
 
 function groupByRegion(results: SearchResult[]): RegionGroup[] {
   const groups = new Map<string, SearchResult[]>();
@@ -41,16 +48,16 @@ function StaggeredResultsInner({ results, condText, skipAnimation, onDone }: Sta
   const doneCalledRef = useRef(false);
 
   const flatItems = useMemo(() => {
-    const items: { type: 'header'; region: string; key: string }[] | { type: 'card'; result: SearchResult; globalIndex: number; key: string }[] = [];
+    const items: FlatItem[] = [];
     let globalIndex = 0;
     for (const group of regionGroups) {
-      (items as { type: 'header'; region: string; key: string }[]).push({ type: 'header', region: group.region, key: `header-${group.region}` });
+      items.push({ type: 'header', region: group.region, key: `header-${group.region}` });
       for (const r of group.results) {
-        (items as { type: 'card'; result: SearchResult; globalIndex: number; key: string }[]).push({ type: 'card', result: r, globalIndex, key: r.serviceId });
+        items.push({ type: 'card', result: r, globalIndex, key: r.serviceId });
         globalIndex++;
       }
     }
-    return items as ({ type: 'header'; region: string; key: string } | { type: 'card'; result: SearchResult; globalIndex: number; key: string })[];
+    return items;
   }, [regionGroups]);
 
   useEffect(() => {
@@ -64,7 +71,7 @@ function StaggeredResultsInner({ results, condText, skipAnimation, onDone }: Sta
 
     const timer = setTimeout(() => {
       setVisibleCount((c) => c + 1);
-    }, 120);
+    }, RESULT_STAGGER_INTERVAL_MS);
 
     return () => clearTimeout(timer);
   }, [visibleCount, flatItems.length, onDone]);
@@ -82,7 +89,7 @@ function StaggeredResultsInner({ results, condText, skipAnimation, onDone }: Sta
         return (
           <div
             key={item.key}
-            style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
+            style={{ animation: RESULT_ENTER_ANIMATION }}
           >
             <ErrorBoundary
               fallback={

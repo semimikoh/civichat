@@ -1,3 +1,5 @@
+import 'server-only';
+
 import OpenAI from 'openai';
 
 const MODEL = 'text-embedding-3-small';

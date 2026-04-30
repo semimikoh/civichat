@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildContextualLawQuery } from '@/core/legal/search';
+import { buildContextualLawQuery } from '@/domains/legal';
 
 describe('buildContextualLawQuery', () => {
   it('이전 대화가 없으면 원래 질문을 그대로 쓴다', () => {

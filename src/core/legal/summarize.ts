@@ -1,4 +1,4 @@
-import type { LawSearchResult } from '@/core/legal/search';
+import type { LawSearchResult } from '@/domains/legal';
 import { getOpenAIClient } from '@/core/embeddings/openai';
 
 const SYSTEM_PROMPT = `너는 법령 검색 결과를 요약해주는 도우미야.

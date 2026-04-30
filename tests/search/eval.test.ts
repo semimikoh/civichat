@@ -8,7 +8,7 @@
  */
 import { config } from 'dotenv';
 import { EVAL_QUERIES, evaluateBenefitResults } from '@/core/benefit/eval-queries';
-import { searchBenefits } from '@/core/benefit/search';
+import { searchBenefits } from '@/domains/benefit';
 
 config({ path: '.env.local' });
 

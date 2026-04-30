@@ -1,6 +1,10 @@
 // 코드 기반 키워드 파싱.
 // 패턴 정의는 extract-patterns.ts에 분리.
+import type { ConversationMessage } from '@/core/types/conversation';
 import * as Patterns from './extract-patterns';
+import { CITY_TO_PROVINCE, PROVINCE_MAP, SUB_REGION_MAP } from './region-data';
+
+export type { ConversationMessage } from '@/core/types/conversation';
 
 export interface ExtractedConditions {
   age: number | null;
@@ -25,11 +29,6 @@ export interface AnalysisResult {
   action: 'search' | 'ask';
   conditions: ExtractedConditions;
   followUpQuestion?: string;
-}
-
-export interface ConversationMessage {
-  role: 'user' | 'assistant';
-  content: string;
 }
 
 // --- 나이 추출 ---
@@ -87,83 +86,6 @@ function extractOccupation(text: string): string | null {
   return null;
 }
 
-// --- 지역 추출 ---
-// 동/읍/면 → 시군구 매핑
-const SUB_REGION_MAP: Record<string, [string, string]> = {
-  '동탄': ['화성시', '경기도'],
-  '분당': ['성남시', '경기도'],
-  '판교': ['성남시', '경기도'],
-  '일산': ['고양시', '경기도'],
-  '산본': ['군포시', '경기도'],
-  '평촌': ['안양시', '경기도'],
-  '광교': ['수원시', '경기도'],
-  '위례': ['성남시', '경기도'],
-  '미사': ['하남시', '경기도'],
-  '강남': ['서울특별시', '서울특별시'],
-  '강북': ['서울특별시', '서울특별시'],
-  '잠실': ['서울특별시', '서울특별시'],
-  '송파': ['서울특별시', '서울특별시'],
-  '마포': ['서울특별시', '서울특별시'],
-  '영등포': ['서울특별시', '서울특별시'],
-  '해운대': ['부산광역시', '부산광역시'],
-  '서면': ['부산광역시', '부산광역시'],
-  '유성': ['대전광역시', '대전광역시'],
-  '제주': ['제주특별자치도', '제주특별자치도'],
-  '세종': ['세종특별자치시', '세종특별자치시'],
-};
-
-// 시군구 → 광역시도 매핑
-const PROVINCE_MAP: Record<string, string> = {
-  '서울': '서울특별시', '서울시': '서울특별시', '서울특별시': '서울특별시',
-  '부산': '부산광역시', '부산시': '부산광역시', '부산광역시': '부산광역시',
-  '대구': '대구광역시', '대구시': '대구광역시', '대구광역시': '대구광역시',
-  '인천': '인천광역시', '인천시': '인천광역시', '인천광역시': '인천광역시',
-  '광주': '광주광역시', '광주시': '광주광역시', '광주광역시': '광주광역시',
-  '대전': '대전광역시', '대전시': '대전광역시', '대전광역시': '대전광역시',
-  '울산': '울산광역시', '울산시': '울산광역시', '울산광역시': '울산광역시',
-  '경기': '경기도', '경기도': '경기도',
-  '강원': '강원특별자치도', '강원도': '강원특별자치도',
-  '충북': '충청북도', '충청북도': '충청북도',
-  '충남': '충청남도', '충청남도': '충청남도',
-  '전북': '전북특별자치도', '전라북도': '전북특별자치도',
-  '전남': '전라남도', '전라남도': '전라남도',
-  '경북': '경상북도', '경상북도': '경상북도',
-  '경남': '경상남도', '경상남도': '경상남도',
-  '제주': '제주특별자치도', '제주도': '제주특별자치도',
-  '세종': '세종특별자치시', '세종시': '세종특별자치시',
-};
-
-// 도별 시군 목록 [시군명, 광역시도]
-const CITY_TO_PROVINCE: [string, string][] = [
-  // 경기도
-  ...['수원시', '성남시', '고양시', '용인시', '부천시', '안산시', '안양시', '남양주시',
-    '화성시', '평택시', '의정부시', '시흥시', '파주시', '김포시', '광명시', '광주시',
-    '군포시', '하남시', '오산시', '이천시', '안성시', '의왕시', '양주시', '구리시',
-    '포천시', '여주시', '동두천시', '과천시', '양평군', '가평군', '연천군',
-  ].map((c): [string, string] => [c, '경기도']),
-  // 전북특별자치도
-  ...['전주시', '익산시', '군산시', '정읍시', '남원시', '김제시',
-  ].map((c): [string, string] => [c, '전북특별자치도']),
-  // 전라남도
-  ...['목포시', '여수시', '순천시', '나주시', '광양시',
-  ].map((c): [string, string] => [c, '전라남도']),
-  // 충청북도
-  ...['청주시', '충주시', '제천시',
-  ].map((c): [string, string] => [c, '충청북도']),
-  // 충청남도
-  ...['천안시', '아산시', '서산시', '논산시', '당진시', '공주시',
-  ].map((c): [string, string] => [c, '충청남도']),
-  // 경상북도
-  ...['포항시', '경주시', '구미시', '김천시', '안동시', '영주시', '상주시',
-  ].map((c): [string, string] => [c, '경상북도']),
-  // 경상남도
-  ...['창원시', '김해시', '진주시', '양산시', '거제시', '통영시', '사천시',
-  ].map((c): [string, string] => [c, '경상남도']),
-  // 강원특별자치도
-  ...['춘천시', '원주시', '강릉시', '동해시', '속초시', '삼척시',
-  ].map((c): [string, string] => [c, '강원특별자치도']),
-];
-
 function extractRegion(text: string): { region: string | null; regionProvince: string | null } {
   // 1. 동/읍/면 단위 매핑
   for (const [sub, [city, province]] of Object.entries(SUB_REGION_MAP)) {
@@ -199,7 +121,7 @@ function extractIncome(text: string): number | null {
   if (monthly) return parseInt(monthly[1], 10) * 12;
 
   if (Patterns.INCOME_MINIMUM_WAGE_PATTERN.test(text)) return Patterns.MINIMUM_WAGE_ANNUAL;
-  if (Patterns.LOW_INCOME_PATTERN.test(text)) return Patterns.LOW_INCOME_ANNUAL;
+  if (Patterns.LOW_INCOME_PATTERN.test(text)) return Patterns.LOW_INCOME_DEFAULT_ANNUAL;
 
   return null;
 }
@@ -301,16 +223,15 @@ function buildSearchQuery(conditions: ExtractedConditions, originalQuery: string
     parts.push(originalQuery);
   }
 
-  if (conditions.occupation === Patterns.OccupationLabel.JOB_SEEKER) {
-    parts.push('미취업 청년 구직활동 지원');
-  } else if (conditions.occupation === Patterns.OccupationLabel.PREGNANT) {
-    parts.push('임산부 임신 출산 지원');
-  } else if (conditions.occupation === Patterns.OccupationLabel.SMALL_BUSINESS) {
-    parts.push('소상공인 자영업 사업 대출 경영 지원');
-  } else if (conditions.occupation === Patterns.OccupationLabel.SINGLE_PARENT) {
-    parts.push('한부모 가족 양육비 돌봄 지원');
-  } else if (conditions.occupation) {
-    parts.push(conditions.occupation, '지원');
+  const OCCUPATION_QUERY_EXPANSIONS: Partial<Record<string, string>> = {
+    [Patterns.OccupationLabel.JOB_SEEKER]: '미취업 청년 구직활동 지원',
+    [Patterns.OccupationLabel.PREGNANT]: '임산부 임신 출산 지원',
+    [Patterns.OccupationLabel.SMALL_BUSINESS]: '소상공인 자영업 사업 대출 경영 지원',
+    [Patterns.OccupationLabel.SINGLE_PARENT]: '한부모 가족 양육비 돌봄 지원',
+  };
+  if (conditions.occupation) {
+    const expansion = OCCUPATION_QUERY_EXPANSIONS[conditions.occupation];
+    parts.push(expansion ?? `${conditions.occupation} 지원`);
   }
 
   if (conditions.maritalStatus === '신혼') {
@@ -322,7 +243,7 @@ function buildSearchQuery(conditions: ExtractedConditions, originalQuery: string
   if (conditions.nationality) {
     parts.push(conditions.nationality, '지원');
   }
-  if (conditions.income !== null && conditions.income <= Patterns.LOW_INCOME_ANNUAL) {
+  if (conditions.income !== null && conditions.income <= Patterns.LOW_INCOME_DEFAULT_ANNUAL) {
     parts.push('저소득 기초생활 수급자 차상위 지원');
   }
 
@@ -380,7 +301,7 @@ function shouldResetConditions(text: string): boolean {
 }
 
 // --- 메인: 코드 기반 분석 ---
-export function analyzeQuery(
+export function resolveSearchIntent(
   userQuery: string,
   history: ConversationMessage[],
 ): AnalysisResult {
@@ -439,6 +360,7 @@ export function analyzeQuery(
   const GENERIC_KEYWORDS = ['지원금', '혜택', '지원', '보조금', '수당'];
   const specificKeywords = conditions.keywords.filter((k) => !GENERIC_KEYWORDS.includes(k));
 
+  const SEARCH_CONDITION_THRESHOLD = 2;
   const hasEnoughContext = [
     age !== null,
     gender !== null,
@@ -451,7 +373,7 @@ export function analyzeQuery(
     employmentType !== null,
     housingType !== null,
     nationality !== null,
-  ].filter(Boolean).length >= 2;
+  ].filter(Boolean).length >= SEARCH_CONDITION_THRESHOLD;
 
   const hasSpecificTopic = specificKeywords.length > 0 || occupation !== null;
 

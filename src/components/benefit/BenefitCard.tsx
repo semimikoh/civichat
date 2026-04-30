@@ -1,8 +1,10 @@
 'use client';
 
 import { Card, Text, Badge, Group, Stack, ActionIcon, Divider } from '@mantine/core';
-import type { SearchResult } from '@/core/benefit/search';
+import { ExternalLinkIcon } from '@/components/shared/ExternalLinkIcon';
+import type { SearchResult } from '@/domains/benefit';
 import { getSafeUrl } from '@/lib/safe-url';
+import { CARD_GAP } from '@/lib/text-layout/prepared';
 
 interface BenefitCardProps {
   result: SearchResult;
@@ -10,14 +12,12 @@ interface BenefitCardProps {
   condText?: string;
 }
 
-function LinkIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-      <polyline points="15 3 21 3 21 9" />
-      <line x1="10" y1="14" x2="21" y2="3" />
-    </svg>
-  );
+/** 복지 카드 추정 높이 — extraHeight 계산과 반드시 일치시킬 것 */
+export const BENEFIT_CARD_HEIGHT = 200;
+
+/** 결과 목록의 전체 추가 높이. ChatContainer의 calcExtraHeight에서 사용. */
+export function getBenefitResultsExtraHeight(count: number): number {
+  return count * (BENEFIT_CARD_HEIGHT + CARD_GAP);
 }
 
 export function BenefitCard({ result, index, condText }: BenefitCardProps) {
@@ -46,7 +46,7 @@ export function BenefitCard({ result, index, condText }: BenefitCardProps) {
             aria-label={`${result.serviceName} 상세 페이지 열기 (새 창)`}
             flex="none"
           >
-            <LinkIcon />
+            <ExternalLinkIcon />
           </ActionIcon>
         )}
       </Group>

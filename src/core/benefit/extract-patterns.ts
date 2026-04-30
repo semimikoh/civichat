@@ -133,7 +133,10 @@ export const INCOME_MONTHLY_PATTERN = /월\s*(?:급여?|소득|수입)?\s*(\d{1,
 export const INCOME_MINIMUM_WAGE_PATTERN = /최저임금|최저시급/;
 export const MINIMUM_WAGE_ANNUAL = 2400; // 만원 단위
 export const LOW_INCOME_PATTERN = /기초\s*생활|기초수급|수급자|차상위|저소득|중위소득/;
-export const LOW_INCOME_ANNUAL = 1800; // 검색 조건용 보수적 대표값
+/** 저소득 키워드 매칭 시 income 필드에 할당할 기본값 (만원) */
+export const LOW_INCOME_DEFAULT_ANNUAL = 1800;
+/** 점수 부스팅 임계값 — 이 이하 소득이면 저소득 콘텐츠 boost (만원) */
+export const LOW_INCOME_BOOST_THRESHOLD = 1800;
 
 // --- 가구원 수 ---
 export const HOUSEHOLD_SIZE_PATTERN = /(\d)\s*인\s*가(?:구|족)|가(?:구|족)\s*(\d)\s*(?:명|인)/;

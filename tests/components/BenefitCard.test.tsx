@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { BenefitCard } from '@/components/benefit/BenefitCard';
-import type { SearchResult } from '@/core/benefit/search';
+import type { SearchResult } from '@/domains/benefit';
 
 function renderWithMantine(ui: React.ReactElement) {
   return render(<MantineProvider>{ui}</MantineProvider>);

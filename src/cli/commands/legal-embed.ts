@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Command } from 'commander';
-import { getSupabaseClient } from '@/core/db/supabase';
+import { getOrCreateSupabaseClient } from '@/core/db/supabase';
 import { embedTexts } from '@/core/embeddings/openai';
 import { DATA_DIR } from '@/cli/commands/shared';
 import type { LawArticle } from '@/core/types/law';
@@ -26,7 +26,7 @@ legalEmbedCommand
     const articles: LawArticle[] = JSON.parse(readFileSync(articlesPath, 'utf-8'));
     console.log(`${articles.length}건 조문 로드 완료`);
 
-    const supabase = getSupabaseClient();
+    const supabase = getOrCreateSupabaseClient();
 
     // 이미 적재된 건 확인
     let toProcess = articles;

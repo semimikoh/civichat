@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { searchLawArticles } from '@/core/legal/search';
+import { searchLawArticles } from '@/domains/legal';
 
 export const legalSearchCommand = new Command('legal-search')
   .description('법령 조문 검색')

@@ -1,102 +1,28 @@
-import { z } from 'zod';
-import { searchBenefits, type ConversationMessage } from '@/core/benefit/search';
+import { createStreamSearchPost, SSE_EVENT } from '@/app/api/_shared/stream-search-route';
+import { searchBenefits } from '@/domains/benefit';
 import { summarizeResultsStream } from '@/core/benefit/summarize';
-import { SSE_EVENT } from '@/core/types/sse';
-import { captureError } from '@/lib/sentry';
 
-const searchSchema = z.object({
-  query: z.string().trim().min(1).max(500),
-  count: z.number().int().min(1).max(20).optional().default(10),
-  history: z.array(z.object({
-    role: z.enum(['user', 'assistant']),
-    content: z.string().max(2000),
-  })).max(20).optional().default([]),
+export const POST = createStreamSearchPost({
+  source: 'benefit',
+  search: ({ query, history, count }) => searchBenefits({ query, history, matchCount: count }),
+  getQuestionResponse(response) {
+    return response.type === 'question' ? Response.json(response) : null;
+  },
+  getResultsEvent(response) {
+    if (response.type === 'question') {
+      return { type: SSE_EVENT.RESULTS, message: response.message, results: [] };
+    }
+    return {
+      type: SSE_EVENT.RESULTS,
+      message: response.message,
+      results: response.results,
+      condText: response.condText,
+    };
+  },
+  getSummaryStream(response, { query }) {
+    if (response.type === 'question' || !response.results || response.results.length === 0) {
+      return Promise.resolve(null);
+    }
+    return summarizeResultsStream(query, response.results, response.condText ?? '');
+  },
 });
-
-export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: '잘못된 요청 형식입니다.' }, { status: 400 });
-  }
-
-  const parsed = searchSchema.safeParse(body);
-  if (!parsed.success) {
-    return Response.json(
-      { error: '입력값이 올바르지 않습니다.', details: parsed.error.flatten() },
-      { status: 400 },
-    );
-  }
-
-  const { query, count, history } = parsed.data;
-
-  let response;
-  try {
-    response = await searchBenefits({
-      query,
-      history: history as ConversationMessage[],
-      matchCount: count,
-    });
-  } catch (err) {
-    captureError(err, { query, source: 'benefit-search' });
-    return Response.json(
-      { error: '검색 중 오류가 발생했습니다.' },
-      { status: 500 },
-    );
-  }
-
-  if (response.type === 'question') {
-    return Response.json(response);
-  }
-
-  const encoder = new TextEncoder();
-  let cancelled = false;
-  const stream = new ReadableStream({
-    async start(controller) {
-      const enqueue = (data: string) => {
-        if (cancelled) return;
-        controller.enqueue(encoder.encode(data));
-      };
-
-      // 검색 결과를 먼저 전송 → 카드가 즉시 표시됨
-      enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.RESULTS, message: response.message, results: response.results, condText: response.condText })}\n\n`);
-
-      if (response.results && response.results.length > 0) {
-        try {
-          const summaryStream = await summarizeResultsStream(
-            query,
-            response.results,
-            response.condText ?? '',
-          );
-
-          for await (const chunk of summaryStream) {
-            if (cancelled) break;
-            const text = chunk.choices[0]?.delta?.content;
-            if (text) {
-              enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.SUMMARY_CHUNK, text })}\n\n`);
-            }
-          }
-
-          enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.SUMMARY_DONE })}\n\n`);
-        } catch (err) {
-          captureError(err, { query, source: 'benefit-summary' });
-          enqueue(`data: ${JSON.stringify({ type: SSE_EVENT.SUMMARY_DONE, error: '요약 생성 중 오류가 발생했습니다.' })}\n\n`);
-        }
-      }
-
-      if (!cancelled) controller.close();
-    },
-    cancel() {
-      cancelled = true;
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-    },
-  });
-}

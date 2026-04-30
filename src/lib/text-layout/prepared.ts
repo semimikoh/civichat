@@ -8,7 +8,7 @@ import {
   BOLD_FONT,
   buildCumulativeWidths,
 } from './measure';
-import type { VirtualizableMessage } from './use-message-height';
+import type { VirtualizableMessage } from './types';
 
 // --- 타입 ---
 
@@ -180,8 +180,6 @@ const PAPER_PADDING_Y = 24;
 const PAPER_PADDING_X = 24;
 const DEFAULT_LINE_HEIGHT = 1.55;
 
-/** BenefitCard 추정 높이 — BenefitCard.tsx의 실제 렌더와 일치시킬 것 */
-export const BENEFIT_CARD_HEIGHT = 200;
 export const CARD_GAP = 8;
 
 /** 법령 아코디언 접힌 상태 추정 높이 — LawArticleCard.tsx의 Accordion.Control과 일치 */

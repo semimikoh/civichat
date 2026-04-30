@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { searchBenefits } from '@/core/benefit/search';
+import { searchBenefits } from '@/domains/benefit';
 import { EVAL_QUERIES, evaluateBenefitResults, type EvalQuery } from '@/core/benefit/eval-queries';
 
 interface EvalResult {
