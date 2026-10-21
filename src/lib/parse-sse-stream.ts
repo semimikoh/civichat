@@ -15,6 +15,34 @@ export async function parseSSEStream<TResults>(
   let buffer = '';
   let summaryText = '';
 
+  const handleLine = (line: string) => {
+    if (!line.startsWith('data: ')) return;
+    const json = line.slice(6);
+    if (!json) return;
+
+    let event: SSEEvent<TResults>;
+    try {
+      event = JSON.parse(json) as SSEEvent<TResults>;
+    } catch {
+      console.error('SSE JSON 파싱 실패:', json);
+      return;
+    }
+
+    if (event.type === SSE_EVENT.SUMMARY_CHUNK && event.text) {
+      summaryText += event.text;
+      callbacks.onSummaryChunk(event.text, summaryText);
+    }
+
+    if (event.error) {
+      callbacks.onError(event.error);
+      return;
+    }
+
+    if (event.type === SSE_EVENT.RESULTS) {
+      callbacks.onResults(event.message ?? '', (event.results ?? []) as TResults[], event.condText, event.query);
+    }
+  };
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -22,33 +50,10 @@ export async function parseSSEStream<TResults>(
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');
     buffer = lines.pop() ?? '';
-
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const json = line.slice(6);
-      if (!json) continue;
-
-      let event: SSEEvent<TResults>;
-      try {
-        event = JSON.parse(json) as SSEEvent<TResults>;
-      } catch {
-        console.error('SSE JSON 파싱 실패:', json);
-        continue;
-      }
-
-      if (event.type === SSE_EVENT.SUMMARY_CHUNK && event.text) {
-        summaryText += event.text;
-        callbacks.onSummaryChunk(event.text, summaryText);
-      }
-
-      if (event.error) {
-        callbacks.onError(event.error);
-        continue;
-      }
-
-      if (event.type === SSE_EVENT.RESULTS) {
-        callbacks.onResults(event.message ?? '', (event.results ?? []) as TResults[], event.condText, event.query);
-      }
-    }
+    lines.forEach(handleLine);
   }
+
+  // 마지막 이벤트가 줄바꿈 없이 끝난 경우까지 처리
+  buffer += decoder.decode();
+  if (buffer) handleLine(buffer);
 }

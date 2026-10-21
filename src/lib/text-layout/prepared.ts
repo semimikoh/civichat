@@ -182,10 +182,10 @@ const DEFAULT_LINE_HEIGHT = 1.55;
 
 export const CARD_GAP = 8;
 
-/** 법령 아코디언 접힌 상태 추정 높이 — LawArticleCard.tsx의 Accordion.Control과 일치 */
+/** 법령 아코디언 접힌 상태 추정 높이 — LawArticleList.tsx의 Accordion.Control과 일치 */
 export const LAW_ACCORDION_COLLAPSED_HEIGHT = 80;
 
-/** 말풍선 최대 너비 비율 — MessageList.tsx, ChatContainer.tsx의 maxWidth와 일치시킬 것 */
+/** 말풍선 최대 너비 비율 — ChatBubble.tsx의 maxWidth가 이 값을 그대로 사용한다 */
 export const USER_BUBBLE_WIDTH_RATIO = 0.75;
 export const ASSISTANT_BUBBLE_WIDTH_RATIO = 0.80;
 

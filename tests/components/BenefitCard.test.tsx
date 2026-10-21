@@ -25,6 +25,7 @@ function makeResult(overrides: Partial<SearchResult> = {}): SearchResult {
     managingAgency: '서울특별시',
     law: '',
     similarity: 0.9523,
+    score: 0.9523,
     ...overrides,
   };
 }

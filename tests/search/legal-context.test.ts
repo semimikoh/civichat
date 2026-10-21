@@ -43,4 +43,33 @@ describe('buildContextualLawQuery', () => {
 
     expect(buildContextualLawQuery('처음부터 육아휴직', history)).toBe('처음부터 육아휴직');
   });
+
+  it('짧아도 새 주제인 질문은 이전 질문과 섞지 않는다', () => {
+    const history = [
+      { role: 'user' as const, content: '근로기준법 연차휴가' },
+      { role: 'assistant' as const, content: '결과입니다' },
+    ];
+
+    expect(buildContextualLawQuery('임대차 보증금 반환', history)).toBe('임대차 보증금 반환');
+    expect(buildContextualLawQuery('전세사기 피해', history)).toBe('전세사기 피해');
+  });
+
+  it('지시어로 시작하는 후속 질문은 법령 용어가 있어도 맥락을 잇는다', () => {
+    const history = [
+      { role: 'user' as const, content: '근로기준법 연차휴가' },
+      { role: 'assistant' as const, content: '결과입니다' },
+    ];
+
+    expect(buildContextualLawQuery('그 조항 벌칙은?', history)).toBe('근로기준법 연차휴가 그 조항 벌칙은?');
+  });
+
+  it('history 끝에 현재 질문이 들어 있어도 맥락 두 개를 온전히 쓴다', () => {
+    const history = [
+      { role: 'user' as const, content: '장애인 고용 의무' },
+      { role: 'user' as const, content: '민간기업 기준으로' },
+      { role: 'user' as const, content: '벌칙은?' },
+    ];
+
+    expect(buildContextualLawQuery('벌칙은?', history)).toBe('장애인 고용 의무 민간기업 기준으로 벌칙은?');
+  });
 });

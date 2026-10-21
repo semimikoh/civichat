@@ -1,4 +1,5 @@
 import type { ExtractedConditions } from '@/core/benefit/extract';
+import { captureError } from '@/core/monitoring/sentry';
 import { OccupationLabel, LOW_INCOME_BOOST_THRESHOLD } from '@/core/benefit/extract-patterns';
 import type { BenefitRepository } from '@/core/benefit/repository';
 import type { SearchResult } from '@/core/benefit/types';
@@ -99,24 +100,20 @@ function calcPatternBoost(result: RankableBenefit, userQuery: string, rules: { q
   return score;
 }
 
-export function applyRelevanceRerank<TBenefit extends RankableBenefit>(
+/** 가산점을 반영한 score로 재정렬한다. 원본 similarity는 건드리지 않는다. */
+export function applyRelevanceRerank<TBenefit extends RankableBenefit & { score: number }>(
   results: TBenefit[],
   userQuery: string,
   conditions: ExtractedConditions,
 ): TBenefit[] {
   const queryWords = tokenizeQuery(userQuery, conditions);
-  if (queryWords.length === 0) return results;
 
-  const reranked = results.map((result) => {
-    const score = scoreBenefitRelevance(result, userQuery, conditions, queryWords);
-
-    return {
+  return results
+    .map((result) => ({
       ...result,
-      similarity: score.final,
-    };
-  });
-
-  return reranked.sort((a, b) => b.similarity - a.similarity);
+      score: scoreBenefitRelevance(result, userQuery, conditions, queryWords).final,
+    }))
+    .sort((a, b) => b.score - a.score);
 }
 
 export function scoreBenefitRelevance(
@@ -152,7 +149,8 @@ export function scoreBenefitRelevance(
     intent,
     target,
     closed,
-    final: Math.max(0, Math.min(rawFinal, 1)),
+    // 상한을 두지 않는다 — 1로 자르면 가산점을 많이 받은 결과끼리 동점이 되어 순서가 뭉개진다
+    final: Math.max(0, rawFinal),
   };
 }
 
@@ -182,7 +180,8 @@ export async function applyConditionFilter(
   try {
     conditionRows = await repository.getConditionRows(serviceIds);
   } catch (err) {
-    console.error(err);
+    // 조건 필터는 보조 단계라 실패해도 검색은 계속하되, 조용히 삼키지 않고 보고한다
+    captureError(err, { source: 'benefit-condition-filter' });
     return results;
   }
 

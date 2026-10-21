@@ -1,4 +1,4 @@
-import type { SearchResult } from '@/domains/benefit';
+import type { SearchResult } from '@/core/benefit/types';
 import { getOpenAIClient } from '@/core/embeddings/openai';
 
 const SYSTEM_PROMPT = `너는 정부 복지 혜택 검색 결과를 요약해주는 도우미야.
@@ -23,30 +23,6 @@ function buildUserPrompt(query: string, results: SearchResult[], conditionText: 
   )).join('\n\n');
 
   return `사용자 질문: "${query}"\n추출된 조건: ${conditionText}\n\n검색 결과:\n${resultsText}`;
-}
-
-/** 일반 요약 (한번에 반환) */
-export async function summarizeResults(
-  query: string,
-  results: SearchResult[],
-  conditionText: string,
-): Promise<string> {
-  if (results.length === 0) {
-    return '조건에 맞는 혜택을 찾지 못했습니다. 다른 키워드로 검색해보세요.';
-  }
-
-  const openai = getOpenAIClient();
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: buildUserPrompt(query, results, conditionText) },
-    ],
-    temperature: 0.3,
-    max_tokens: 400,
-  });
-
-  return response.choices[0].message.content ?? '요약 생성 중 오류가 발생했습니다.';
 }
 
 /** 스트리밍 요약 (청크 단위 반환) */

@@ -3,8 +3,8 @@ import 'server-only';
 import { z } from 'zod';
 import { captureError } from '@/core/monitoring/sentry';
 import { SSE_EVENT, type SSEEvent } from '@/core/types/sse';
-import type { ConversationMessage } from '@/core/types/conversation';
 import { createSseResponse, sseEvent } from '@/lib/sse-stream';
+import { createRateLimiter, getClientKey } from '@/app/api/_shared/rate-limit';
 
 const searchRequestSchema = z.object({
   query: z.string().trim().min(1).max(500),
@@ -15,32 +15,45 @@ const searchRequestSchema = z.object({
   })).max(20).optional().default([]),
 });
 
-export interface SearchRequest {
-  query: string;
-  count: number;
-  history: ConversationMessage[];
-}
+export type SearchRequest = z.infer<typeof searchRequestSchema>;
+
+/** 요청 1건이 OpenAI 임베딩 + 요약을 호출하므로 클라이언트별로 호출 횟수를 제한한다. */
+const SEARCH_RATE_LIMIT = { limit: 20, windowMs: 60_000 };
 
 type SummaryChunkStream = AsyncIterable<{
   choices: Array<{ delta?: { content?: string | null } }>;
 }>;
 
-interface StreamSearchRouteOptions<TResponse, TResult> {
+interface StreamSearchRouteOptions<TResponse, TStreamResponse extends TResponse, TResult> {
   source: string;
   search: (request: SearchRequest) => Promise<TResponse>;
-  getQuestionResponse?: (response: TResponse) => Response | null;
-  getResultsEvent: (response: TResponse, request: SearchRequest) => SSEEvent<TResult>;
-  getSummaryStream: (response: TResponse, request: SearchRequest) => Promise<SummaryChunkStream | null>;
+  /**
+   * SSE로 흘려보낼 응답인지 판별한다. false면 SSE 대신 JSON으로 바로 응답한다(추가 질문 등).
+   * 생략하면 모든 응답을 SSE로 보낸다.
+   */
+  isStreamable?: (response: TResponse) => response is TStreamResponse;
+  getResultsEvent: (response: TStreamResponse, request: SearchRequest) => SSEEvent<TResult>;
+  getSummaryStream: (response: TStreamResponse, request: SearchRequest) => Promise<SummaryChunkStream | null>;
 }
 
-export function createStreamSearchPost<TResponse, TResult>({
+export function createStreamSearchPost<TResponse, TResult, TStreamResponse extends TResponse = TResponse>({
   source,
   search,
-  getQuestionResponse,
+  isStreamable,
   getResultsEvent,
   getSummaryStream,
-}: StreamSearchRouteOptions<TResponse, TResult>) {
+}: StreamSearchRouteOptions<TResponse, TStreamResponse, TResult>) {
+  const checkRateLimit = createRateLimiter(SEARCH_RATE_LIMIT);
+
   return async function POST(request: Request) {
+    const rateLimit = checkRateLimit(getClientKey(request));
+    if (!rateLimit.allowed) {
+      return Response.json(
+        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+      );
+    }
+
     let body: unknown;
     try {
       body = await request.json();
@@ -56,11 +69,7 @@ export function createStreamSearchPost<TResponse, TResult>({
       );
     }
 
-    const searchRequest: SearchRequest = {
-      query: parsed.data.query,
-      count: parsed.data.count,
-      history: parsed.data.history,
-    };
+    const searchRequest = parsed.data;
 
     let response: TResponse;
     try {
@@ -70,14 +79,15 @@ export function createStreamSearchPost<TResponse, TResult>({
       return Response.json({ error: '검색 중 오류가 발생했습니다.' }, { status: 500 });
     }
 
-    const questionResponse = getQuestionResponse?.(response) ?? null;
-    if (questionResponse) return questionResponse;
+    if (isStreamable && !isStreamable(response)) return Response.json(response);
+    // isStreamable을 생략했다면 TStreamResponse는 TResponse와 같다
+    const streamResponse = response as TStreamResponse;
 
     return createSseResponse(async (enqueue, isCancelled) => {
-      enqueue(sseEvent(getResultsEvent(response, searchRequest)));
+      enqueue(sseEvent(getResultsEvent(streamResponse, searchRequest)));
 
       try {
-        const summaryStream = await getSummaryStream(response, searchRequest);
+        const summaryStream = await getSummaryStream(streamResponse, searchRequest);
         if (!summaryStream) return;
 
         for await (const chunk of summaryStream) {
@@ -94,5 +104,3 @@ export function createStreamSearchPost<TResponse, TResult>({
     });
   };
 }
-
-export { SSE_EVENT };

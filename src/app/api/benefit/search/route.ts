@@ -1,28 +1,19 @@
-import { createStreamSearchPost, SSE_EVENT } from '@/app/api/_shared/stream-search-route';
-import { searchBenefits } from '@/domains/benefit';
+import { createStreamSearchPost } from '@/app/api/_shared/stream-search-route';
+import { SSE_EVENT } from '@/core/types/sse';
+import { searchBenefits, type SearchResponse, type SearchResult } from '@/domains/benefit';
 import { summarizeResultsStream } from '@/core/benefit/summarize';
 
-export const POST = createStreamSearchPost({
+type BenefitResultsResponse = Extract<SearchResponse, { type: 'results' }>;
+
+export const POST = createStreamSearchPost<SearchResponse, SearchResult, BenefitResultsResponse>({
   source: 'benefit',
   search: ({ query, history, count }) => searchBenefits({ query, history, matchCount: count }),
-  getQuestionResponse(response) {
-    return response.type === 'question' ? Response.json(response) : null;
+  isStreamable: (response): response is BenefitResultsResponse => response.type === 'results',
+  getResultsEvent({ message, results, condText }) {
+    return { type: SSE_EVENT.RESULTS, message, results, condText };
   },
-  getResultsEvent(response) {
-    if (response.type === 'question') {
-      return { type: SSE_EVENT.RESULTS, message: response.message, results: [] };
-    }
-    return {
-      type: SSE_EVENT.RESULTS,
-      message: response.message,
-      results: response.results,
-      condText: response.condText,
-    };
-  },
-  getSummaryStream(response, { query }) {
-    if (response.type === 'question' || !response.results || response.results.length === 0) {
-      return Promise.resolve(null);
-    }
-    return summarizeResultsStream(query, response.results, response.condText ?? '');
+  getSummaryStream({ results, condText }, { query }) {
+    if (results.length === 0) return Promise.resolve(null);
+    return summarizeResultsStream(query, results, condText);
   },
 });

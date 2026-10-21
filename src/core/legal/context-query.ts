@@ -1,7 +1,11 @@
+import { isContextReset } from '@/core/conversation/reset';
 import type { ConversationMessage } from '@/core/types/conversation';
 
-const LEGAL_CONTEXT_RESET_PATTERN = /^(초기화|리셋|reset|처음부터|새로\s*검색|다른\s*주제)/i;
-const LEGAL_FOLLOW_UP_PATTERN = /^(그|이|위|해당|관련|그러면|그럼|그중|거기|추가로|그리고)\b|[?？]$|^(비율|벌칙|예외|요건|대상|절차|신고|처벌|의무|기간|방법|조건|근거|조항|조문|내용|얼마|몇|언제|어디)(은|는|이|가|도|만|부터|부터야|이야|인가|일까|일까\?|은\?)?/;
+/** 앞 대화를 가리키는 지시어로 시작하는 질문 (예: "그 조항 벌칙은?", "그럼 예외는?") */
+const LEGAL_ANAPHORA_PATTERN = /^(?:그중|그럼|그러면|그런|이런|해당|거기|추가로|그리고)|^(?:그|이|위)(?=\s)/;
+/** 앞 주제의 특정 측면만 묻는 질문 (예: "비율은?", "벌칙은?") */
+const LEGAL_ASPECT_PATTERN = /^(?:비율|벌칙|처벌|과태료|예외|요건|대상|절차|신고|의무|기간|방법|조건|근거|조항|조문|내용|기준|금액|얼마|몇|언제|어디)/;
+const MAX_ASPECT_QUERY_WORDS = 3;
 
 function normalizeHistoryText(text: string): string {
   return text
@@ -10,40 +14,28 @@ function normalizeHistoryText(text: string): string {
     .trim();
 }
 
-function isStandaloneLawQuery(query: string): boolean {
-  const normalized = query.trim();
-  const words = normalized.split(/\s+/).filter(Boolean);
-
-  if (normalized.length >= 18) return true;
-  if (words.length >= 4) return true;
-  if (/법|법령|시행령|시행규칙|조문|조항|제\d+조/.test(normalized) && words.length >= 2) return true;
-
-  return false;
-}
-
+/**
+ * 이전 질문의 맥락이 필요한 후속 질문인지 판단한다.
+ * 짧다는 이유만으로 후속 질문으로 보지 않는다 — "전세사기 피해"처럼 짧은 새 주제가 앞 질문과 섞이기 때문.
+ */
 function isFollowUpLawQuery(query: string): boolean {
-  const normalized = query.trim();
-  const words = normalized.split(/\s+/).filter(Boolean);
+  if (isContextReset(query)) return false;
+  if (LEGAL_ANAPHORA_PATTERN.test(query)) return true;
 
-  if (LEGAL_CONTEXT_RESET_PATTERN.test(normalized)) return false;
-  if (isStandaloneLawQuery(normalized)) return false;
-
-  return normalized.length <= 20 && (words.length <= 3 || LEGAL_FOLLOW_UP_PATTERN.test(normalized));
+  const wordCount = query.split(/\s+/).filter(Boolean).length;
+  return wordCount <= MAX_ASPECT_QUERY_WORDS && LEGAL_ASPECT_PATTERN.test(query);
 }
 
 export function buildContextualLawQuery(query: string, history: ConversationMessage[] = []): string {
   const normalizedQuery = normalizeHistoryText(query);
   if (!normalizedQuery || !isFollowUpLawQuery(normalizedQuery)) return normalizedQuery;
 
-  const recentUserQueries = history
+  const context = history
     .filter((msg) => msg.role === 'user')
     .map((msg) => normalizeHistoryText(msg.content))
-    .filter(Boolean)
+    .filter((text) => text && text !== normalizedQuery)
     .slice(-2);
 
-  if (recentUserQueries.length === 0) return normalizedQuery;
-
-  const context = recentUserQueries.filter((text) => text !== normalizedQuery);
   if (context.length === 0) return normalizedQuery;
 
   return [...context, normalizedQuery].join(' ');

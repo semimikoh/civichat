@@ -2,27 +2,49 @@
 
 import { useState, useCallback } from 'react';
 import { useAbortableReader } from '@/hooks/use-abortable-reader';
-import { useChatMessages, type BaseChatMessage, type AssistantMessage } from '@/hooks/use-chat-messages';
+import {
+  createMessageId,
+  useChatMessages,
+  type AssistantMessage,
+  type BaseChatMessage,
+} from '@/hooks/use-chat-messages';
 import { parseSSEStream } from '@/lib/parse-sse-stream';
 
 export type { BaseChatMessage } from '@/hooks/use-chat-messages';
+
+const REQUEST_TIMEOUT_MS = 60_000;
 
 export interface UseChatSearchStreamOptions<TResult> {
   apiUrl: string;
   buildBody: (query: string, messages: BaseChatMessage<TResult>[]) => Record<string, unknown>;
   calcExtraHeight: (results: TResult[]) => number;
-  /** 검색 결과(SSE/JSON)가 도착했을 때 호출되는 콜백 */
-  onResultsReceived?: () => void;
+}
+
+function hasResults<TResult>(msg: BaseChatMessage<TResult>): msg is AssistantMessage<TResult> {
+  return msg.role === 'assistant' && !msg.loading && msg.results !== undefined;
+}
+
+function getSummary<TResult>(msg: BaseChatMessage<TResult>): string | undefined {
+  return msg.role === 'assistant' && !msg.loading ? msg.summary : undefined;
+}
+
+async function readErrorMessage(res: Response): Promise<string> {
+  const data: unknown = await res.json().catch(() => null);
+  if (data && typeof data === 'object' && 'error' in data && typeof data.error === 'string') {
+    return data.error;
+  }
+  return `서버 오류 (${res.status})`;
 }
 
 export function useChatSearchStream<TResult>(options: UseChatSearchStreamOptions<TResult>) {
-  const { apiUrl, buildBody, calcExtraHeight, onResultsReceived } = options;
+  const { apiUrl, buildBody, calcExtraHeight } = options;
   const {
     messages,
     messagesRef,
     setAndSyncMessages,
+    updateMessage,
     resetMessages,
-    markMessageAnimated,
+    markMessageAnimated: markAnimated,
   } = useChatMessages<TResult>();
   const {
     startRequest,
@@ -30,23 +52,39 @@ export function useChatSearchStream<TResult>(options: UseChatSearchStreamOptions
     resetRequest,
     finishRequest,
   } = useAbortableReader();
-  const [isInputDisabled, setIsInputDisabled] = useState(false);
+  /** 요청 시작 ~ 스트림 종료 */
+  const [isRequesting, setIsRequesting] = useState(false);
+  /** 요청 시작 ~ 첫 응답(결과/질문/오류) 도착. 이후 요약 스트리밍 중에는 false. */
+  const [isSearching, setIsSearching] = useState(false);
+  /** 응답 메시지가 화면에 타이핑/등장 애니메이션 중 */
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const resetChat = useCallback(() => {
     resetRequest();
     resetMessages();
-    setIsInputDisabled(false);
+    setIsRequesting(false);
+    setIsSearching(false);
+    setIsAnimating(false);
   }, [resetMessages, resetRequest]);
+
+  const markMessageAnimated = useCallback((id: string) => {
+    markAnimated(id);
+    setIsAnimating(false);
+  }, [markAnimated]);
 
   const handleSubmit = useCallback(async (query: string) => {
     const controller = startRequest();
 
-    const userMsg: BaseChatMessage<TResult> = { role: 'user', content: query };
-    const loadingMsg: BaseChatMessage<TResult> = { role: 'assistant', loading: true };
+    const userMsg: BaseChatMessage<TResult> = { id: createMessageId(), role: 'user', content: query };
+    const assistantId = createMessageId();
+    const loadingMsg: BaseChatMessage<TResult> = { id: assistantId, role: 'assistant', loading: true };
 
     const currentMessages = messagesRef.current;
     setAndSyncMessages((prev) => [...prev, userMsg, loadingMsg]);
-    setIsInputDisabled(true);
+    setIsRequesting(true);
+    setIsSearching(true);
+
+    const replaceAssistant = (next: AssistantMessage<TResult>) => updateMessage(assistantId, () => next);
 
     try {
       const body = buildBody(query, [...currentMessages, userMsg]);
@@ -55,21 +93,19 @@ export function useChatSearchStream<TResult>(options: UseChatSearchStreamOptions
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(60000)]),
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]),
       });
 
-      if (!res.ok) throw new Error(`서버 오류 (${res.status})`);
+      if (!res.ok) throw new Error(await readErrorMessage(res));
 
       const contentType = res.headers.get('content-type') ?? '';
 
       // JSON 응답 (질문 모드)
       if (contentType.includes('application/json')) {
         const data = await res.json();
-        onResultsReceived?.();
-        setAndSyncMessages((prev) => [
-          ...prev.slice(0, -1),
-          { role: 'assistant', content: data.message ?? data.error ?? '' },
-        ]);
+        setIsSearching(false);
+        setIsAnimating(true);
+        replaceAssistant({ id: assistantId, role: 'assistant', content: data.message ?? data.error ?? '' });
         return;
       }
 
@@ -80,72 +116,54 @@ export function useChatSearchStream<TResult>(options: UseChatSearchStreamOptions
 
       await parseSSEStream<TResult>(reader, {
         onSummaryChunk(_chunk, accumulated) {
-          setAndSyncMessages((prev) => {
-            const updated = [...prev];
-            const idx = updated.findLastIndex((m) => m.role === 'assistant');
-            if (idx !== -1) {
-              const prevMsg = updated[idx];
-              updated[idx] = prevMsg.role === 'assistant' && !prevMsg.loading
-                ? { ...prevMsg, summary: accumulated }
-                : { role: 'assistant', content: '', summary: accumulated };
-            }
-            return updated;
-          });
+          updateMessage(assistantId, (msg) => (
+            msg.role === 'assistant' && !msg.loading
+              ? { ...msg, summary: accumulated }
+              : { id: assistantId, role: 'assistant', content: '', summary: accumulated }
+          ));
         },
         onResults(message, results, condText, effectiveQuery) {
-          onResultsReceived?.();
-          setAndSyncMessages((prev) => {
-            const updated = [...prev];
-            const idx = updated.findLastIndex((m) => m.role === 'assistant');
-            if (idx !== -1) {
-              const prevMsg = updated[idx];
-              const summary =
-                prevMsg.role === 'assistant' && !prevMsg.loading ? prevMsg.summary : undefined;
-              const next: AssistantMessage<TResult> = {
-                role: 'assistant',
-                content: message,
-                results,
-                condText: condText ?? '',
-                query: effectiveQuery ?? query,
-                extraHeight: calcExtraHeight(results),
-                summary,
-              };
-              updated[idx] = next;
-            }
-            return updated;
-          });
+          setIsSearching(false);
+          setIsAnimating(true);
+          updateMessage(assistantId, (msg) => ({
+            id: assistantId,
+            role: 'assistant',
+            content: message,
+            results,
+            condText: condText ?? '',
+            query: effectiveQuery ?? query,
+            extraHeight: calcExtraHeight(results),
+            summary: getSummary(msg),
+          }));
         },
         onError(message) {
-          setAndSyncMessages((prev) => {
-            const updated = [...prev];
-            const idx = updated.findLastIndex((m) => m.role === 'assistant');
-            if (idx !== -1) {
-              const prevMsg = updated[idx];
-              const summary =
-                prevMsg.role === 'assistant' && !prevMsg.loading ? prevMsg.summary : undefined;
-              updated[idx] = { role: 'assistant', content: message, summary };
-            }
-            return updated;
-          });
+          setIsSearching(false);
+          // 결과를 이미 받았다면(요약만 실패) 결과는 그대로 두고 안내만 덧붙인다
+          updateMessage(assistantId, (msg) => (
+            hasResults(msg)
+              ? { ...msg, summaryError: message }
+              : { id: assistantId, role: 'assistant', content: message, summary: getSummary(msg) }
+          ));
         },
       });
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
-      setAndSyncMessages((prev) => [
-        ...prev.slice(0, -1),
-        { role: 'assistant', content: `오류가 발생했습니다: ${errMsg}` },
-      ]);
+      replaceAssistant({ id: assistantId, role: 'assistant', content: `오류가 발생했습니다: ${errMsg}` });
     } finally {
       if (finishRequest(controller)) {
-        setIsInputDisabled(false);
+        setIsRequesting(false);
+        setIsSearching(false);
       }
     }
-  }, [apiUrl, buildBody, calcExtraHeight, setAndSyncMessages, finishRequest, messagesRef, onResultsReceived, setReader, startRequest]);
+  }, [apiUrl, buildBody, calcExtraHeight, setAndSyncMessages, updateMessage, finishRequest, messagesRef, setReader, startRequest]);
 
   return {
     messages,
-    isInputDisabled,
+    /** 검색 결과를 기다리는 중 — 대화 영역에 로딩 오버레이를 띄울 때 사용 */
+    isSearching,
+    /** 요청이 끝나고 응답 애니메이션까지 끝나야 다음 입력을 받는다 */
+    isInputDisabled: isRequesting || isAnimating,
     handleSubmit,
     markMessageAnimated,
     resetChat,

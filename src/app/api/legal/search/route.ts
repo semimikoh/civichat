@@ -1,4 +1,5 @@
-import { createStreamSearchPost, SSE_EVENT } from '@/app/api/_shared/stream-search-route';
+import { createStreamSearchPost } from '@/app/api/_shared/stream-search-route';
+import { SSE_EVENT } from '@/core/types/sse';
 import { searchLawArticles } from '@/domains/legal';
 import { summarizeLawResultsStream } from '@/core/legal/summarize';
 

@@ -42,6 +42,7 @@ export function mapBenefitRpcRow(row: BenefitRpcRow): SearchResult {
     managingAgency: row.managing_agency,
     law: row.law,
     similarity: row.similarity,
+    score: row.similarity,
   };
 }
 

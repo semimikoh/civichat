@@ -2,31 +2,28 @@
 
 import { Text } from '@mantine/core';
 import type { ReactNode } from 'react';
-import { useMessageVirtualizer, type VirtualizableMessage } from '@/hooks/use-message-height';
+import { useMessageVirtualizer } from '@/hooks/use-message-height';
 import { ChatBubble } from '@/components/shared/ChatBubble';
+import type { AssistantMessage, BaseChatMessage, UserMessage } from '@/hooks/use-chat-messages';
 
-export interface ChatListMessage {
-  role: 'user' | 'assistant';
-  content?: string;
-  summary?: string;
-  extraHeight?: number;
-  loading?: boolean;
-}
+type VisibleMessage<TResult> = UserMessage | AssistantMessage<TResult>;
 
-interface ChatMessageListProps<TMessage extends ChatListMessage> {
-  messages: TMessage[];
+interface ChatMessageListProps<TResult> {
+  messages: BaseChatMessage<TResult>[];
   ariaLabel: string;
-  renderAssistant: (message: TMessage, visibleIndex: number) => ReactNode;
+  renderAssistant: (message: AssistantMessage<TResult>) => ReactNode;
 }
 
-export function ChatMessageList<TMessage extends ChatListMessage>({
+function isVisible<TResult>(msg: BaseChatMessage<TResult>): msg is VisibleMessage<TResult> {
+  return !(msg.role === 'assistant' && msg.loading);
+}
+
+export function ChatMessageList<TResult>({
   messages,
   ariaLabel,
   renderAssistant,
-}: ChatMessageListProps<TMessage>) {
-  const visibleMessages = messages.filter(
-    (m): m is TMessage & VirtualizableMessage => !m.loading,
-  );
+}: ChatMessageListProps<TResult>) {
+  const visibleMessages = messages.filter(isVisible);
   const { virtualizer, scrollRef } = useMessageVirtualizer(visibleMessages);
 
   return (
@@ -64,10 +61,10 @@ export function ChatMessageList<TMessage extends ChatListMessage>({
               <ChatBubble role={msg.role}>
                 {msg.role === 'user' ? (
                   <Text size="sm" c="white" style={{ whiteSpace: 'pre-line' }}>
-                    {msg.content ?? ''}
+                    {msg.content}
                   </Text>
                 ) : (
-                  renderAssistant(msg, virtualItem.index)
+                  renderAssistant(msg)
                 )}
               </ChatBubble>
             </div>

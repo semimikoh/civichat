@@ -32,6 +32,7 @@ const baseBenefit = {
   applicationDeadline: "",
   managingAgency: "",
   similarity: 0.45,
+  score: 0.45,
 };
 
 describe("benefit ranking", () => {
@@ -53,7 +54,6 @@ describe("benefit ranking", () => {
     expect(score.intent).toBeGreaterThan(0);
     expect(score.keyword).toBeGreaterThan(0);
     expect(score.final).toBeGreaterThan(score.base);
-    expect(score.final).toBeLessThanOrEqual(1);
   });
 
   it("낮은 원점수라도 질의와 조건이 맞는 혜택을 위로 올린다", () => {
@@ -81,5 +81,21 @@ describe("benefit ranking", () => {
     );
 
     expect(top.serviceName).toBe("서울 청년 구직활동 지원");
+  });
+
+  it("재정렬은 score만 바꾸고 원본 similarity는 보존한다", () => {
+    const [top] = applyRelevanceRerank(
+      [{
+        ...baseBenefit,
+        serviceName: "서울 청년 구직활동 지원",
+        targetAudience: "서울 거주 미취업 청년",
+        managingAgency: "서울특별시",
+      }],
+      "서울 청년 취업 지원",
+      baseConditions,
+    );
+
+    expect(top.similarity).toBe(0.45);
+    expect(top.score).toBeGreaterThan(top.similarity);
   });
 });

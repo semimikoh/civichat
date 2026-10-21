@@ -42,21 +42,22 @@ export async function searchBenefits(options: SearchOptions): Promise<SearchResp
     match_threshold: matchThreshold,
   };
 
-  const regionalRows = await repository.searchCandidates({
-    ...baseRpcParams,
-    region_filter: conditions.region,
-    province_filter: conditions.regionProvince,
-    match_count: Math.max(matchCount * 8, MIN_REGIONAL_CANDIDATES),
-  });
-
-  const broadRows = conditions.region
-    ? await repository.searchCandidates({
+  const [regionalRows, broadRows] = await Promise.all([
+    repository.searchCandidates({
       ...baseRpcParams,
-      region_filter: null,
-      province_filter: null,
-      match_count: Math.max(matchCount * 4, MIN_BROAD_CANDIDATES),
-    })
-    : [];
+      region_filter: conditions.region,
+      province_filter: conditions.regionProvince,
+      match_count: Math.max(matchCount * 8, MIN_REGIONAL_CANDIDATES),
+    }),
+    conditions.region
+      ? repository.searchCandidates({
+        ...baseRpcParams,
+        region_filter: null,
+        province_filter: null,
+        match_count: Math.max(matchCount * 4, MIN_BROAD_CANDIDATES),
+      })
+      : Promise.resolve([]),
+  ]);
 
   let results = dedupeBenefitRows([...regionalRows, ...broadRows]).map(mapBenefitRpcRow);
 

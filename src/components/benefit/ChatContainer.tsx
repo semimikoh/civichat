@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Button, Center } from '@mantine/core';
-import { MessageList } from '@/components/benefit/MessageList';
+import { AssistantMessage } from '@/components/benefit/AssistantMessage';
 import { ChatConversationArea } from '@/components/shared/ChatConversationArea';
 import { ChatInput } from '@/components/shared/ChatInput';
+import { ChatMessageList } from '@/components/shared/ChatMessageList';
 import { ChatPageFrame } from '@/components/shared/ChatPageFrame';
 import type { SearchResult } from '@/domains/benefit';
 import { useChatSearchStream, type BaseChatMessage } from '@/hooks/use-chat-search-stream';
@@ -17,8 +18,6 @@ const BENEFIT_HINTS = [
 ];
 
 export function ChatContainer() {
-  const [isAnimating, setIsAnimating] = useState(false);
-
   const buildBody = useCallback((query: string, msgs: BaseChatMessage<SearchResult>[]) => {
     const history = msgs.flatMap((m): Array<{ role: string; content: string }> => {
       if (m.role === 'assistant' && m.loading) return [];
@@ -37,34 +36,16 @@ export function ChatContainer() {
     return getBenefitResultsExtraHeight(results.length);
   }, []);
 
-  const onResultsReceived = useCallback(() => {
-    setIsAnimating(true);
-  }, []);
+  const { messages, isSearching, isInputDisabled, handleSubmit, markMessageAnimated, resetChat } =
+    useChatSearchStream<SearchResult>({
+      apiUrl: '/api/benefit/search',
+      buildBody,
+      calcExtraHeight,
+    });
 
-  const {
-    messages,
-    isInputDisabled,
-    handleSubmit,
-    markMessageAnimated,
-    resetChat: resetStream,
-  } = useChatSearchStream<SearchResult>({
-    apiUrl: '/api/benefit/search',
-    buildBody,
-    calcExtraHeight,
-    onResultsReceived,
-  });
-
-  const handleMessageAnimated = useCallback((index: number) => {
-    markMessageAnimated(index);
-    setIsAnimating(false);
-  }, [markMessageAnimated]);
-
-  const resetChat = useCallback(() => {
-    resetStream();
-    setIsAnimating(false);
-  }, [resetStream]);
-
-  const hasCompletedResults = !isInputDisabled && !isAnimating && messages.some((m) => m.role === 'assistant' && !m.loading && m.results && m.results.length > 0);
+  const hasCompletedResults = !isInputDisabled && messages.some(
+    (m) => m.role === 'assistant' && !m.loading && m.results && m.results.length > 0,
+  );
 
   return (
     <ChatPageFrame
@@ -73,10 +54,16 @@ export function ChatContainer() {
     >
       <ChatConversationArea
         isEmpty={messages.length === 0}
-        isBusy={isInputDisabled}
+        isBusy={isSearching}
         empty={{ subtitle: '어떤 혜택을 찾고 계신가요?', hints: BENEFIT_HINTS }}
       >
-        <MessageList messages={messages} onMessageAnimated={handleMessageAnimated} />
+        <ChatMessageList
+          messages={messages}
+          ariaLabel="대화 내역"
+          renderAssistant={(msg) => (
+            <AssistantMessage msg={msg} onAnimationDone={() => markMessageAnimated(msg.id)} />
+          )}
+        />
       </ChatConversationArea>
 
       {hasCompletedResults && (
@@ -87,7 +74,7 @@ export function ChatContainer() {
         </Center>
       )}
 
-      <ChatInput onSubmit={handleSubmit} disabled={isInputDisabled || isAnimating} />
+      <ChatInput onSubmit={handleSubmit} disabled={isInputDisabled} />
     </ChatPageFrame>
   );
 }

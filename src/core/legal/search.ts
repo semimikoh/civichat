@@ -2,7 +2,7 @@ import { embedQuery } from '@/core/embeddings/openai';
 import { buildContextualLawQuery } from '@/core/legal/context-query';
 import { mapLawArticleRpcRow } from '@/core/legal/mapper';
 import { createLawRepository } from '@/core/legal/repository';
-import type { LawSearchOptions, LawSearchResponse, LawSearchResult } from '@/core/legal/types';
+import type { LawSearchOptions, LawSearchResponse } from '@/core/legal/types';
 
 export { buildContextualLawQuery } from '@/core/legal/context-query';
 export type { LawSearchOptions, LawSearchResponse, LawSearchResult } from '@/core/legal/types';
@@ -28,11 +28,4 @@ export async function searchLawArticles(options: LawSearchOptions): Promise<LawS
     : '관련 법령 조문을 찾지 못했습니다. 다른 키워드로 검색해보세요.';
 
   return { message, results, query: effectiveQuery };
-}
-
-/** 법령명으로 해당 법령의 조문 목록 조회 (복지 서비스 → 법령 연결용) */
-export async function getLawArticlesByTitle(lawTitle: string): Promise<LawSearchResult[]> {
-  const repository = createLawRepository();
-  const rows = await repository.getArticlesByTitle(lawTitle);
-  return rows.map(mapLawArticleRpcRow);
 }

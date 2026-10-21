@@ -19,88 +19,92 @@ function highlightText(text: string, query?: string): ReactNode {
   const words = query.split(/\s+/).filter((w) => w.length >= 2);
   if (words.length === 0) return text;
 
-  const pattern = new RegExp(`(${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+  const pattern = new RegExp(`(${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'i');
+  // 캡처 그룹으로 split하면 홀수 인덱스가 항상 매칭된 부분이다
   const parts = text.split(pattern);
 
   return parts.map((part, i) =>
-    pattern.test(part) ? <Mark key={i}>{part}</Mark> : part,
+    i % 2 === 1 ? <Mark key={i}>{part}</Mark> : part,
   );
 }
 
 export function LawArticleList({ results, query }: LawArticleListProps) {
   return (
     <Accordion variant="separated" radius="md">
-      {results.map((r, i) => (
-        <ErrorBoundary
-          key={r.id}
-          fallback={
-            <Card withBorder padding="md" radius="md">
-              <Text size="sm" c="dimmed">법령 조문을 표시할 수 없습니다.</Text>
-            </Card>
-          }
-        >
-          <Accordion.Item value={String(r.id)}>
-            <Accordion.Control>
-              <Stack gap={2}>
-                <Group gap="xs" wrap="nowrap">
-                  <Text fw={700} size="sm" flex={1} lineClamp={1}>
-                    {i + 1}. {r.lawTitle}
-                  </Text>
-                  <Badge size="xs" variant="outline" color="gray" flex="none">{r.lawType}</Badge>
-                </Group>
-                {r.chapter && (
-                  <Text size="xs" c="dimmed">{r.chapter}</Text>
-                )}
-                <Text size="sm" fw={600} c="blue.7">
-                  {r.articleNumber} ({r.articleTitle})
-                </Text>
-              </Stack>
-            </Accordion.Control>
-            <Accordion.Panel>
-              <Stack gap="sm">
-                <Box
-                  p="sm"
-                  style={{
-                    backgroundColor: 'var(--mantine-color-default-hover)',
-                    borderRadius: 'var(--mantine-radius-sm)',
-                    borderLeft: '3px solid var(--mantine-color-blue-4)',
-                  }}
-                >
-                  <Text size="sm" style={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>
-                    {highlightText(r.articleContent, query)}
-                  </Text>
-                </Box>
-                {getSafeUrl(r.sourceUrl) && (
-                  <Group gap="xs">
-                    <ActionIcon
-                      component="a"
-                      href={getSafeUrl(r.sourceUrl)!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      variant="subtle"
-                      size="sm"
-                      aria-label={`${r.lawTitle} 법령 원문 보기 (새 창)`}
-                    >
-                      <ExternalLinkIcon size={14} />
-                    </ActionIcon>
-                    <Text
-                      component="a"
-                      href={getSafeUrl(r.sourceUrl)!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      size="xs"
-                      c="blue"
-                      style={{ textDecoration: 'none' }}
-                    >
-                      법령 원문 보기
+      {results.map((r, i) => {
+        const sourceUrl = getSafeUrl(r.sourceUrl);
+        return (
+          <ErrorBoundary
+            key={r.id}
+            fallback={
+              <Card withBorder padding="md" radius="md">
+                <Text size="sm" c="dimmed">법령 조문을 표시할 수 없습니다.</Text>
+              </Card>
+            }
+          >
+            <Accordion.Item value={String(r.id)}>
+              <Accordion.Control>
+                <Stack gap={2}>
+                  <Group gap="xs" wrap="nowrap">
+                    <Text fw={700} size="sm" flex={1} lineClamp={1}>
+                      {i + 1}. {r.lawTitle}
                     </Text>
+                    <Badge size="xs" variant="outline" color="gray" flex="none">{r.lawType}</Badge>
                   </Group>
-                )}
-              </Stack>
-            </Accordion.Panel>
-          </Accordion.Item>
-        </ErrorBoundary>
-      ))}
+                  {r.chapter && (
+                    <Text size="xs" c="dimmed">{r.chapter}</Text>
+                  )}
+                  <Text size="sm" fw={600} c="blue.7">
+                    {r.articleNumber} ({r.articleTitle})
+                  </Text>
+                </Stack>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <Stack gap="sm">
+                  <Box
+                    p="sm"
+                    style={{
+                      backgroundColor: 'var(--mantine-color-default-hover)',
+                      borderRadius: 'var(--mantine-radius-sm)',
+                      borderLeft: '3px solid var(--mantine-color-blue-4)',
+                    }}
+                  >
+                    <Text size="sm" style={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>
+                      {highlightText(r.articleContent, query)}
+                    </Text>
+                  </Box>
+                  {sourceUrl && (
+                    <Group gap="xs">
+                      <ActionIcon
+                        component="a"
+                        href={sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="subtle"
+                        size="sm"
+                        aria-label={`${r.lawTitle} 법령 원문 보기 (새 창)`}
+                      >
+                        <ExternalLinkIcon size={14} />
+                      </ActionIcon>
+                      <Text
+                        component="a"
+                        href={sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        size="xs"
+                        c="blue"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        법령 원문 보기
+                      </Text>
+                    </Group>
+                  )}
+                </Stack>
+              </Accordion.Panel>
+            </Accordion.Item>
+          </ErrorBoundary>
+        );
+      })}
     </Accordion>
   );
 }

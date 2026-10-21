@@ -37,14 +37,11 @@ export function useTypewriter(text: string, options: UseTypewriterOptions = {}) 
       return () => clearTimeout(id);
     }
 
-    // 텍스트가 이전보다 길어진 경우 (스트리밍 중 추가)
-    if (text.startsWith(prevTextRef.current)) {
-      indicesRef.current = buildWordEndIndices(text);
-    } else {
-      // 텍스트가 완전히 바뀐 경우 리셋
-      indicesRef.current = buildWordEndIndices(text);
+    // 스트리밍으로 이어 붙은 경우엔 진행 위치를 유지하고, 완전히 바뀐 경우에만 처음부터 다시 보여준다
+    if (!text.startsWith(prevTextRef.current)) {
       stepRef.current = 0;
     }
+    indicesRef.current = buildWordEndIndices(text);
     prevTextRef.current = text;
 
     const indices = indicesRef.current;

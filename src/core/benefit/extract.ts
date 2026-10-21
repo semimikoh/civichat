@@ -1,10 +1,9 @@
 // 코드 기반 키워드 파싱.
 // 패턴 정의는 extract-patterns.ts에 분리.
+import { isContextReset } from '@/core/conversation/reset';
 import type { ConversationMessage } from '@/core/types/conversation';
 import * as Patterns from './extract-patterns';
 import { CITY_TO_PROVINCE, PROVINCE_MAP, SUB_REGION_MAP } from './region-data';
-
-export type { ConversationMessage } from '@/core/types/conversation';
 
 export interface ExtractedConditions {
   age: number | null;
@@ -33,8 +32,13 @@ export interface AnalysisResult {
 
 // --- 나이 추출 ---
 function extractAge(text: string): number | null {
-  const exact = text.match(Patterns.AGE_EXACT_PATTERN);
-  if (exact) return parseInt(exact[1], 10);
+  for (const match of text.matchAll(Patterns.AGE_EXACT_PATTERN)) {
+    const before = text.slice(0, match.index);
+    const after = text.slice(match.index + match[0].length);
+    const isOthersAge = Patterns.AGE_OF_OTHER_BEFORE_PATTERN.test(before)
+      || Patterns.AGE_OF_OTHER_AFTER_PATTERN.test(after);
+    if (!isOthersAge) return parseInt(match[1], 10);
+  }
 
   const decade = text.match(Patterns.AGE_DECADE_PATTERN);
   if (decade) return parseInt(decade[1], 10) * 10 + 5;
@@ -86,27 +90,46 @@ function extractOccupation(text: string): string | null {
   return null;
 }
 
+/** 동/읍/면 이름 뒤에 올 수 있는 말. "서면으로"처럼 일반 단어 속에 섞인 경우를 걸러낸다. */
+const SUB_REGION_SUFFIX_PATTERN = /^(?:$|[^가-힣]|에|에서|역|동|쪽|근처|사는|살|거주|구)/;
+
+function containsSubRegion(text: string, name: string): boolean {
+  let index = text.indexOf(name);
+  while (index !== -1) {
+    if (SUB_REGION_SUFFIX_PATTERN.test(text.slice(index + name.length))) return true;
+    index = text.indexOf(name, index + 1);
+  }
+  return false;
+}
+
 function extractRegion(text: string): { region: string | null; regionProvince: string | null } {
   // 1. 동/읍/면 단위 매핑
   for (const [sub, [city, province]] of Object.entries(SUB_REGION_MAP)) {
-    if (text.includes(sub)) {
+    if (containsSubRegion(text, sub)) {
       return { region: city, regionProvince: province };
     }
   }
 
-  // 2. 광역시도 매칭 (시군구보다 먼저 — "광주"가 경기도 광주시가 아닌 광주광역시로 매칭되도록)
-  for (const [key, province] of Object.entries(PROVINCE_MAP)) {
-    if (text.includes(key)) {
-      return { region: province, regionProvince: province };
-    }
-  }
+  const mentionedProvinces = new Set(
+    Object.entries(PROVINCE_MAP)
+      .filter(([key]) => text.includes(key))
+      .map(([, province]) => province),
+  );
 
-  // 3. 시군구 직접 매칭 (전국)
+  // 2. 시군구 매칭. 광역시도가 함께 언급됐다면 그 소속 시군구만 인정한다.
+  //    ("경기 수원" → 수원시, "경기 광주" → 광주시, "광주" 단독 → 광주광역시)
   for (const [city, province] of CITY_TO_PROVINCE) {
     const short = city.replace(/시$|군$/, '');
-    if (text.includes(city) || text.includes(short)) {
+    if (!text.includes(city) && !text.includes(short)) continue;
+    if (mentionedProvinces.size === 0 || mentionedProvinces.has(province)) {
       return { region: city, regionProvince: province };
     }
+  }
+
+  // 3. 광역시도 매칭
+  const [province] = mentionedProvinces;
+  if (province) {
+    return { region: province, regionProvince: province };
   }
 
   return { region: null, regionProvince: null };
@@ -115,10 +138,10 @@ function extractRegion(text: string): { region: string | null; regionProvince: s
 // --- 소득 추출 ---
 function extractIncome(text: string): number | null {
   const annual = text.match(Patterns.INCOME_ANNUAL_PATTERN);
-  if (annual) return parseInt(annual[1], 10);
+  if (annual) return parseInt(annual[1] ?? annual[2], 10);
 
   const monthly = text.match(Patterns.INCOME_MONTHLY_PATTERN);
-  if (monthly) return parseInt(monthly[1], 10) * 12;
+  if (monthly) return parseInt(monthly[1] ?? monthly[2], 10) * 12;
 
   if (Patterns.INCOME_MINIMUM_WAGE_PATTERN.test(text)) return Patterns.MINIMUM_WAGE_ANNUAL;
   if (Patterns.LOW_INCOME_PATTERN.test(text)) return Patterns.LOW_INCOME_DEFAULT_ANNUAL;
@@ -250,55 +273,72 @@ function buildSearchQuery(conditions: ExtractedConditions, originalQuery: string
   return [...new Set(parts)].join(' ');
 }
 
-// --- 대화 맥락에서 이전 조건 복원 ---
-function extractPreviousConditions(history: ConversationMessage[]): ExtractedConditions {
-  const merged = emptyConditions();
+// --- 텍스트 한 덩어리에서 조건 추출 ---
+type ScalarConditionField = Exclude<keyof ExtractedConditions, 'region' | 'regionProvince' | 'keywords' | 'searchQuery'>;
 
-  for (const msg of history) {
-    if (msg.role !== 'user') continue;
-    const text = msg.content;
-    // reset 메시지를 만나면 이전 조건을 모두 버리고 이후만 누적
-    if (shouldResetConditions(text)) {
-      Object.assign(merged, emptyConditions());
-      continue;
-    }
-    const age = extractAge(text);
-    if (age !== null) merged.age = age;
-    const gender = extractGender(text);
-    if (gender) merged.gender = gender;
-    const occ = extractOccupation(text);
-    if (occ) merged.occupation = occ;
-    const { region, regionProvince } = extractRegion(text);
-    if (region) { merged.region = region; merged.regionProvince = regionProvince; }
-    const kw = extractKeywords(text);
-    if (kw.length > 0) merged.keywords = kw;
-    const inc = extractIncome(text);
-    if (inc !== null) merged.income = inc;
-    const marital = extractMaritalStatus(text);
-    if (marital) merged.maritalStatus = marital;
-    const household = extractHouseholdSize(text);
-    if (household !== null) merged.householdSize = household;
-    const empType = extractEmploymentType(text);
-    if (empType) merged.employmentType = empType;
-    const resDur = extractResidenceDuration(text);
-    if (resDur !== null) merged.residenceDuration = resDur;
-    const housing = extractHousingType(text);
-    if (housing) merged.housingType = housing;
-    const insurance = extractInsuranceType(text);
-    if (insurance) merged.insuranceType = insurance;
-    const edu = extractEducation(text);
-    if (edu) merged.education = edu;
-    const nat = extractNationality(text);
-    if (nat) merged.nationality = nat;
+/** 조건 필드 하나를 추가할 때는 여기(추출)와 formatConditionText(표시)만 손대면 된다. */
+const SCALAR_EXTRACTORS: { [K in ScalarConditionField]: (text: string) => ExtractedConditions[K] } = {
+  age: extractAge,
+  gender: extractGender,
+  occupation: extractOccupation,
+  income: extractIncome,
+  maritalStatus: extractMaritalStatus,
+  householdSize: extractHouseholdSize,
+  employmentType: extractEmploymentType,
+  residenceDuration: extractResidenceDuration,
+  housingType: extractHousingType,
+  insuranceType: extractInsuranceType,
+  education: extractEducation,
+  nationality: extractNationality,
+};
+
+/** 텍스트에서 발견된 조건만 담아 반환한다. 발견되지 않은 필드는 키 자체가 없다. */
+function extractConditionsFromText(text: string): Partial<ExtractedConditions> {
+  const found: Partial<ExtractedConditions> = {};
+
+  for (const field of Object.keys(SCALAR_EXTRACTORS) as ScalarConditionField[]) {
+    const value = SCALAR_EXTRACTORS[field](text);
+    if (value !== null) Object.assign(found, { [field]: value });
   }
 
-  return merged;
+  const { region, regionProvince } = extractRegion(text);
+  if (region) Object.assign(found, { region, regionProvince });
+
+  const keywords = extractKeywords(text);
+  if (keywords.length > 0) found.keywords = keywords;
+
+  return found;
 }
 
-// --- 조건 초기화 감지 ---
-function shouldResetConditions(text: string): boolean {
-  return Patterns.RESET_PATTERN.test(text.trim());
+// --- 대화 맥락에서 이전 조건 복원 ---
+function extractPreviousConditions(history: ConversationMessage[]): ExtractedConditions {
+  return history
+    .filter((msg) => msg.role === 'user')
+    .reduce<ExtractedConditions>(
+      // reset 메시지를 만나면 이전 조건을 모두 버리고 이후만 누적
+      (merged, msg) => isContextReset(msg.content)
+        ? emptyConditions()
+        : { ...merged, ...extractConditionsFromText(msg.content) },
+      emptyConditions(),
+    );
 }
+
+/** 검색에 충분한 맥락인지 판단할 때 세는 조건들 */
+const CONTEXT_FIELDS = [
+  'age',
+  'gender',
+  'occupation',
+  'region',
+  'income',
+  'maritalStatus',
+  'householdSize',
+  'employmentType',
+  'housingType',
+  'nationality',
+] as const satisfies readonly (keyof ExtractedConditions)[];
+
+const GENERIC_KEYWORDS = ['지원금', '혜택', '지원', '보조금', '수당'];
+const SEARCH_CONDITION_THRESHOLD = 2;
 
 // --- 메인: 코드 기반 분석 ---
 export function resolveSearchIntent(
@@ -306,7 +346,7 @@ export function resolveSearchIntent(
   history: ConversationMessage[],
 ): AnalysisResult {
   // 조건 초기화 감지
-  if (shouldResetConditions(userQuery)) {
+  if (isContextReset(userQuery)) {
     return {
       action: 'ask',
       conditions: emptyConditions(),
@@ -314,67 +354,20 @@ export function resolveSearchIntent(
     };
   }
 
-  // 이전 대화에서 조건 복원
-  const prev = extractPreviousConditions(history);
-
-  // 현재 메시지에서 조건 추출
-  const age = extractAge(userQuery) ?? prev.age;
-  const gender = extractGender(userQuery) ?? prev.gender;
-  const occupation = extractOccupation(userQuery) ?? prev.occupation;
-  const { region: newRegion, regionProvince: newProvince } = extractRegion(userQuery);
-  const region = newRegion ?? prev.region;
-  const regionProvince = newProvince ?? prev.regionProvince;
-  const keywords = extractKeywords(userQuery);
-  const income = extractIncome(userQuery) ?? prev.income;
-  const maritalStatus = extractMaritalStatus(userQuery) ?? prev.maritalStatus;
-  const householdSize = extractHouseholdSize(userQuery) ?? prev.householdSize;
-  const employmentType = extractEmploymentType(userQuery) ?? prev.employmentType;
-  const residenceDuration = extractResidenceDuration(userQuery) ?? prev.residenceDuration;
-  const housingType = extractHousingType(userQuery) ?? prev.housingType;
-  const insuranceType = extractInsuranceType(userQuery) ?? prev.insuranceType;
-  const education = extractEducation(userQuery) ?? prev.education;
-  const nationality = extractNationality(userQuery) ?? prev.nationality;
-
+  // 이전 대화 조건 위에 현재 메시지에서 찾은 조건을 덮어쓴다
   const conditions: ExtractedConditions = {
-    age,
-    gender,
-    occupation,
-    region,
-    regionProvince,
-    income,
-    maritalStatus,
-    householdSize,
-    employmentType,
-    residenceDuration,
-    housingType,
-    insuranceType,
-    education,
-    nationality,
-    keywords: keywords.length > 0 ? keywords : prev.keywords,
+    ...extractPreviousConditions(history),
+    ...extractConditionsFromText(userQuery),
     searchQuery: '',
   };
-
   conditions.searchQuery = buildSearchQuery(conditions, userQuery);
 
-  // 검색 가능 여부 판단
-  const GENERIC_KEYWORDS = ['지원금', '혜택', '지원', '보조금', '수당'];
+  const { age, occupation, region } = conditions;
   const specificKeywords = conditions.keywords.filter((k) => !GENERIC_KEYWORDS.includes(k));
 
-  const SEARCH_CONDITION_THRESHOLD = 2;
-  const hasEnoughContext = [
-    age !== null,
-    gender !== null,
-    occupation !== null,
-    specificKeywords.length > 0,
-    region !== null,
-    income !== null,
-    maritalStatus !== null,
-    householdSize !== null,
-    employmentType !== null,
-    housingType !== null,
-    nationality !== null,
-  ].filter(Boolean).length >= SEARCH_CONDITION_THRESHOLD;
-
+  const filledContextCount = CONTEXT_FIELDS.filter((field) => conditions[field] !== null).length
+    + (specificKeywords.length > 0 ? 1 : 0);
+  const hasEnoughContext = filledContextCount >= SEARCH_CONDITION_THRESHOLD;
   const hasSpecificTopic = specificKeywords.length > 0 || occupation !== null;
 
   if ((hasEnoughContext || hasSpecificTopic) && region !== null) {

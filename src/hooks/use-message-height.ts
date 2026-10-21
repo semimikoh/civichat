@@ -9,11 +9,14 @@ import type { VirtualizableMessage } from '@/lib/text-layout/types';
 
 export type { VirtualizableMessage };
 
+/** 가상 리스트의 key와 높이 캐시 key로 쓸 안정적인 id가 필요하다 */
+export type KeyedVirtualizableMessage = VirtualizableMessage & { id: string };
+
 const MESSAGE_GAP = 12;
 const HEIGHT_CACHE_MAX = 500;
 const HEIGHT_CACHE_TRIM_TO = 250;
 
-export function useMessageVirtualizer(messages: VirtualizableMessage[]) {
+export function useMessageVirtualizer(messages: KeyedVirtualizableMessage[]) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(600);
 
@@ -47,7 +50,8 @@ export function useMessageVirtualizer(messages: VirtualizableMessage[]) {
       const msg = messages[index];
       if (!msg) return 60;
 
-      const cacheKey = `${msg.role}:${msg.content.length}:${msg.summary?.length ?? 0}:${msg.extraHeight ?? 0}:${containerWidth}`;
+      // 너비가 바뀌면 아래 effect에서 캐시를 비우므로 키에는 너비를 넣지 않는다
+      const cacheKey = `${msg.id}:${msg.content.length}:${msg.summary?.length ?? 0}:${msg.extraHeight ?? 0}`;
       const cached = heightCache.current.get(cacheKey);
       if (cached !== undefined) return cached;
 
@@ -67,6 +71,7 @@ export function useMessageVirtualizer(messages: VirtualizableMessage[]) {
     count: messages.length,
     getScrollElement: () => scrollRef.current,
     estimateSize,
+    getItemKey: (index) => messages[index]?.id ?? index,
     overscan: 5,
   });
 

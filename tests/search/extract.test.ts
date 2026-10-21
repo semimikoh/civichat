@@ -198,4 +198,44 @@ describe('resolveSearchIntent', () => {
       expect(r.conditions.region).toBe('화성시');
     });
   });
+
+  describe('오탐 회귀', () => {
+    it('"경기 수원"은 광역이 아니라 시 단위로 잡는다', () => {
+      const r = resolveSearchIntent('경기 수원 청년 취업', []);
+      expect(r.conditions.region).toBe('수원시');
+      expect(r.conditions.regionProvince).toBe('경기도');
+    });
+
+    it('"경기 광주"는 경기도 광주시, "광주" 단독은 광주광역시', () => {
+      expect(resolveSearchIntent('경기 광주 청년 취업', []).conditions.region).toBe('광주시');
+      expect(resolveSearchIntent('광주 청년 취업', []).conditions.region).toBe('광주광역시');
+    });
+
+    it('"서면으로" 같은 일반 단어를 부산 서면으로 보지 않는다', () => {
+      const r = resolveSearchIntent('서면으로 신청 가능한 대구 청년 주거', []);
+      expect(r.conditions.region).toBe('대구광역시');
+    });
+
+    it('동 이름 뒤에 조사가 와도 지역으로 잡는다', () => {
+      expect(resolveSearchIntent('분당에 사는 청년 주거', []).conditions.region).toBe('성남시');
+    });
+
+    it('날짜("10월 1일")를 월 소득으로 보지 않는다', () => {
+      const r = resolveSearchIntent('10월 1일 서울로 전입했는데 주거 지원', []);
+      expect(r.conditions.income).toBeNull();
+      expect(r.conditions.searchQuery).not.toContain('저소득');
+    });
+
+    it('단위가 있는 소득 표현은 그대로 잡는다', () => {
+      expect(resolveSearchIntent('월급 200 서울 청년', []).conditions.income).toBe(2400);
+      expect(resolveSearchIntent('월 150만원 버는 서울 청년', []).conditions.income).toBe(1800);
+      expect(resolveSearchIntent('연봉 3000 서울 청년', []).conditions.income).toBe(3000);
+      expect(resolveSearchIntent('연 2회 지원 서울 청년', []).conditions.income).toBeNull();
+    });
+
+    it('자녀 나이를 사용자 나이로 보지 않는다', () => {
+      expect(resolveSearchIntent('5살 아이 키우는 엄마 서울 육아 지원', []).conditions.age).toBeNull();
+      expect(resolveSearchIntent('아이가 3살인 34살 엄마 서울 육아', []).conditions.age).toBe(34);
+    });
+  });
 });

@@ -119,17 +119,20 @@ export const TOPIC_PATTERNS: [RegExp, string[]][] = [
   [/에너지|바우처|난방|전기요금|가스요금/, ['에너지', '바우처', '난방']],
 ];
 
-// --- 조건 초기화 감지 ---
-export const RESET_PATTERN = /^(초기화|리셋|reset|다시\s*검색|새로\s*검색|처음부터)/i;
-
 // --- 나이 ---
-export const AGE_EXACT_PATTERN = /만?\s*(\d{1,3})\s*(살|세)/;
+export const AGE_EXACT_PATTERN = /만?\s*(\d{1,3})\s*(살|세)(?!대)/g;
+/** 나이 뒤에 오면 본인이 아니라 자녀·가족의 나이로 본다 (예: "5살 아이") */
+export const AGE_OF_OTHER_AFTER_PATTERN = /^\s*(?:된|인)?\s*(?:아이|아기|애기?|자녀|딸|아들|동생|조카|손자|손녀|아동)/;
+/** 나이 앞에 오면 본인이 아니라 자녀·가족의 나이로 본다 (예: "아이가 5살") */
+export const AGE_OF_OTHER_BEFORE_PATTERN = /(?:아이|아기|애기?|자녀|딸|아들|동생|조카|손자|손녀|아동)(?:가|는|이|은)?\s*$/;
 export const AGE_DECADE_PATTERN = /(\d)0\s*대/;
 export const AGE_YOUTH_KEYWORD = /청년/;
 
 // --- 소득 ---
-export const INCOME_ANNUAL_PATTERN = /연봉?\s*(\d{1,5})\s*만?\s*원?/;
-export const INCOME_MONTHLY_PATTERN = /월\s*(?:급여?|소득|수입)?\s*(\d{1,4})\s*만?\s*원?/;
+/** "연봉 3000", "연 소득 2400만원" — 단위 없는 "연 2회" 같은 표현은 제외 */
+export const INCOME_ANNUAL_PATTERN = /(?<![가-힣\d])(?:연봉\s*(\d{1,5})|연\s*(?:소득|수입)?\s*(\d{1,5})\s*만\s*원?)/;
+/** "월급 200", "월 소득 150만원" — "10월 1일" 같은 날짜는 제외 */
+export const INCOME_MONTHLY_PATTERN = /(?<![가-힣\d])월\s*(?:(?:급여?|소득|수입)\s*(\d{1,4})|(\d{1,4})\s*만\s*원?)/;
 export const INCOME_MINIMUM_WAGE_PATTERN = /최저임금|최저시급/;
 export const MINIMUM_WAGE_ANNUAL = 2400; // 만원 단위
 export const LOW_INCOME_PATTERN = /기초\s*생활|기초수급|수급자|차상위|저소득|중위소득/;

@@ -35,23 +35,5 @@ export function createLawRepository() {
 
       return parsed.data;
     },
-
-    async getArticlesByTitle(lawTitle: string): Promise<LawArticleRpcRow[]> {
-      const { data, error } = await supabase.rpc('get_law_articles_by_title', {
-        target_law_title: lawTitle,
-      });
-
-      if (error) {
-        throw new Error(`법령 조회 실패: ${error.message}`);
-      }
-
-      const rowSchema = lawArticleRpcRowSchema.omit({ similarity: true });
-      const parsed = z.array(rowSchema).safeParse(data ?? []);
-      if (!parsed.success) {
-        throw new Error(`RPC 응답 파싱 실패: ${parsed.error.message}`);
-      }
-
-      return parsed.data.map((row) => ({ ...row, similarity: 1 }));
-    },
   };
 }

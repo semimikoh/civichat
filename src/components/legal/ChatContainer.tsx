@@ -2,10 +2,10 @@
 
 import { useCallback } from 'react';
 import { Button, Center } from '@mantine/core';
-import { AssistantMessage, type LawChatMessage, type LawAssistantMessage } from '@/components/legal/AssistantMessage';
+import { AssistantMessage } from '@/components/legal/AssistantMessage';
 import { LAW_ACCORDION_COLLAPSED_HEIGHT, CARD_GAP } from '@/lib/text-layout/prepared';
 import type { LawSearchResult } from '@/domains/legal';
-import { useChatSearchStream } from '@/hooks/use-chat-search-stream';
+import { useChatSearchStream, type BaseChatMessage } from '@/hooks/use-chat-search-stream';
 import { ChatConversationArea } from '@/components/shared/ChatConversationArea';
 import { ChatInput } from '@/components/shared/ChatInput';
 import { ChatMessageList } from '@/components/shared/ChatMessageList';
@@ -18,7 +18,7 @@ const LAW_HINTS = [
 ];
 
 export function ChatContainer() {
-  const buildBody = useCallback((query: string, msgs: LawChatMessage[]) => {
+  const buildBody = useCallback((query: string, msgs: BaseChatMessage<LawSearchResult>[]) => {
     const history = msgs.flatMap(
       (msg): Array<{ role: string; content: string }> => {
         if (msg.role === 'assistant' && msg.loading) return [];
@@ -33,7 +33,7 @@ export function ChatContainer() {
     return results.length * (LAW_ACCORDION_COLLAPSED_HEIGHT + CARD_GAP);
   }, []);
 
-  const { messages, isInputDisabled, handleSubmit, markMessageAnimated, resetChat } =
+  const { messages, isSearching, isInputDisabled, handleSubmit, markMessageAnimated, resetChat } =
     useChatSearchStream<LawSearchResult>({
       apiUrl: '/api/legal/search',
       buildBody,
@@ -53,17 +53,14 @@ export function ChatContainer() {
     >
       <ChatConversationArea
         isEmpty={messages.length === 0}
-        isBusy={isInputDisabled}
+        isBusy={isSearching}
         empty={{ subtitle: '궁금한 법령을 검색해보세요', hints: LAW_HINTS }}
       >
         <ChatMessageList
           messages={messages}
           ariaLabel="법령 검색 내역"
-          renderAssistant={(msg, visibleIndex) => (
-            <AssistantMessage
-              msg={msg as LawAssistantMessage}
-              onAnimationDone={() => markMessageAnimated(visibleIndex)}
-            />
+          renderAssistant={(msg) => (
+            <AssistantMessage msg={msg} onAnimationDone={() => markMessageAnimated(msg.id)} />
           )}
         />
       </ChatConversationArea>
