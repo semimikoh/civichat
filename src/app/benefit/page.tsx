@@ -1,4 +1,4 @@
-import { ChatContainer } from '@/components/benefit/ChatContainer';
+import { ChatContainer } from '@/features/benefit/components/ChatContainer';
 
 export default function BenefitPage() {
   return <ChatContainer />;

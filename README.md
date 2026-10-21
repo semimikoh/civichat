@@ -96,7 +96,7 @@ Client (Chat UI)
    ↓
 API Route (SSE 스트리밍)
    ↓
-core/ (순수 TypeScript, React 무관)
+features/*/server (순수 TypeScript, React 무관)
    ↓
 Supabase (pgvector) + OpenAI
    ↓
@@ -105,50 +105,58 @@ Response Stream
 UI Update (타이프라이터 + 카드 순차 표시)
 ```
 
-### 핵심 설계 원칙: `src/core/`에 비즈니스 로직 격리
+### 핵심 설계 원칙: 기능 단위 응집 + 서버 로직 격리
 
-- `core/`는 React/Next.js에 의존하지 않는 순수 TypeScript
-- CLI와 API Route가 같은 함수를 공유
+- **함께 바뀌는 코드는 한 폴더에.** 복지 검색을 고칠 때는 `features/benefit`만 열면 된다.
+- **`features/*/server`는 React/Next.js에 의존하지 않는 순수 TypeScript.** CLI와 API Route가 같은 함수를 공유한다.
+- **서빙과 수집을 분리.** 데이터 수집·적재(CLI 전용)는 `ingestion/`에, 사용자 요청 처리는 `features/`에 둔다.
+- **`lib/`은 도메인을 모른다.** 텍스트 측정처럼 다른 프로젝트에 그대로 가져가도 되는 코드만 둔다.
 - 새 기능은 항상 CLI에서 먼저 검증 후 UI에 연결
 
 ### 디렉토리 구조
 
 ```
 src/
-├── core/                # 백엔드 로직 (React/Next 무관, 순수 TypeScript)
-│   ├── benefit/         #   복지 검색 + 조건 추출 + LLM 요약
-│   │   ├── extract-patterns.ts # 조건 추출 정규식 설정
-│   ├── legal/           #   법령 파싱 + 검색 + LLM 요약
-│   ├── embeddings/      #   OpenAI text-embedding-3-small
-│   ├── gov/             #   보조금24 API 연동
-│   ├── db/              #   Supabase 클라이언트 (단일 인스턴스)
-│   └── types/           #   공유 타입 정의 (benefit, law, gov24, sse)
+├── app/                     # Next.js App Router — 라우팅만 (얇게 유지)
+│   ├── api/_shared/         #   SSE 검색 라우트 팩토리, rate limit, SSE 응답 헬퍼
+│   ├── api/benefit/search/  #   복지 검색 SSE API
+│   ├── api/legal/search/    #   법령 검색 SSE API
+│   ├── benefit/, legal/     #   탭 페이지
+│   └── layout.tsx, error.tsx
 │
-├── cli/                 # CLI 진입점 (core를 터미널에서 실행)
-│   └── commands/        #   fetch, embed, search, legal-fetch, legal-embed, legal-search, eval
+├── features/
+│   ├── chat/                # 복지·법령 공통 채팅
+│   │   ├── components/      #   ChatMessageList, ChatInput, AssistantText, ChatBubble …
+│   │   ├── hooks/           #   useChatSearchStream, useChatMessages, useMessageVirtualizer, useTypewriter
+│   │   ├── lib/             #   SSE 파싱, 메시지 높이 추정
+│   │   ├── protocol.ts      #   서버↔클라이언트 SSE 이벤트 계약
+│   │   └── constants.ts
+│   ├── benefit/
+│   │   ├── components/      #   ChatContainer, BenefitCard, StaggeredResults
+│   │   ├── server/          #   검색, 조건 추출(extract-patterns.ts), 재정렬, 요약, eval 질의셋
+│   │   └── types.ts         #   SearchResult 등 (서버·UI 공유)
+│   └── legal/
+│       ├── components/      #   ChatContainer, LawArticleList (아코디언)
+│       ├── server/          #   검색, 후속 질문 문맥 보강, 요약
+│       └── types.ts
 │
-├── app/                 # Next.js App Router
-│   ├── api/benefit/     #   복지 검색 SSE 스트리밍 API
-│   ├── api/legal/       #   법령 검색 SSE 스트리밍 API
-│   ├── benefit/         #   복지 탭 페이지
-│   ├── legal/           #   법령 탭 페이지
-│   ├── layout.tsx       #   루트 레이아웃
-│   └── page.tsx         #   루트 경로 -> /benefit 리다이렉트
+├── server/                  # 기능에 속하지 않는 서버 인프라 (server-only)
+│   ├── openai.ts            #   OpenAI 클라이언트 + 쿼리 임베딩 LRU 캐시
+│   ├── supabase.ts
+│   ├── monitoring.ts        #   Sentry 에러 보고
+│   └── conversation/        #   대화 공통 규칙 (초기화 명령, 메시지 타입)
 │
-├── components/          # React 컴포넌트
-│   ├── benefit/         #   ChatContainer, MessageList, BenefitCard, StaggeredResults
-│   ├── legal/           #   ChatContainer, LawArticleCard (아코디언)
-│   ├── shared/          #   ChatInput, SkipLink (공유 컴포넌트)
-│   ├── home/            #   TabNav
-│   └── providers/       #   Mantine Provider 래퍼
+├── ingestion/               # 데이터 수집·적재 (CLI 전용)
+│   ├── cli/                 #   fetch, embed, search, legal-*, eval
+│   ├── gov24/               #   보조금24 API 연동
+│   ├── benefit/             #   복지 데이터 정제, JA 코드 변환
+│   └── legal/               #   legalize-kr 마크다운 파싱
 │
-└── lib/
-    ├── text-layout/     #   자체 텍스트 측정 모듈 (O(log n) 줄바꿈)
-    ├── parse-sse-stream.ts #  SSE 스트림 파싱 유틸
-    ├── safe-url.ts      #   URL 스킴 검증 (http/https만 허용)
-    ├── sentry.ts        #   API Route 에러 수집 래퍼
-    ├── use-chat-search-stream.ts # 복지/법령 공통 검색 스트림 훅
-    └── use-typewriter.ts #  어절 단위 타이프라이터 훅
+├── components/              # 기능과 무관한 공용 UI (ErrorBoundary, SkipLink, layout/TabNav …)
+├── lib/                     # 도메인을 모르는 유틸
+│   ├── text-layout/         #   자체 텍스트 측정 모듈 (O(log n) 줄바꿈)
+│   └── safe-url.ts          #   URL 스킴 검증 (http/https만 허용)
+└── instrumentation(-client).ts  # Sentry 초기화
 ```
 
 ---
@@ -169,15 +177,15 @@ Canvas 기반 워드프로세서 개발 경험([블로그 글](https://velog.io/
 
 ### 3. 비즈니스 로직과 UI의 완전 분리
 
-`src/core/`에 검색/추출/요약 로직을 순수 TypeScript로 격리했습니다. CLI와 API Route가 동일한 함수를 호출하므로, 새 기능은 터미널에서 먼저 검증한 후 UI에 연결합니다. React/Next.js 의존이 없어 테스트도 빠릅니다.
+`features/*/server`에 검색/추출/요약 로직을 순수 TypeScript로 격리했습니다. CLI와 API Route가 동일한 함수를 호출하므로, 새 기능은 터미널에서 먼저 검증한 후 UI에 연결합니다. React/Next.js 의존이 없어 테스트도 빠릅니다.
 
 ### 4. 도메인별 멀티턴 전략 분리
 
-복지 검색은 나이/성별/직업/지역을 정규식 기반으로 즉시 추출합니다. LLM 호출 대비 지연 시간이 0에 가깝고, 대화 히스토리에서 이전 조건을 누적하여 멀티턴 검색을 지원합니다. 조건이 부족하면 추가 질문을 반환하고, `초기화`, `리셋`, `처음부터` 같은 명령어로 누적 조건을 비울 수 있습니다. 법령 검색은 복지처럼 조건을 구조화하지 않고, `비율은?`, `벌칙은?` 같은 짧은 후속 질문에서 최근 사용자 질문 1~2개를 붙여 검색어를 보강합니다. 정규식 패턴은 `extract-patterns.ts`에 분리해 새 조건을 추가하기 쉽게 구성했습니다.
+복지 검색은 나이/성별/직업/지역을 정규식 기반으로 즉시 추출합니다. LLM 호출 대비 지연 시간이 0에 가깝고, 대화 히스토리에서 이전 조건을 누적하여 멀티턴 검색을 지원합니다. 조건이 부족하면 추가 질문을 반환하고, `초기화`, `리셋`, `처음부터` 같은 명령어로 누적 조건을 비울 수 있습니다. 법령 검색은 복지처럼 조건을 구조화하지 않고, `그 조항 벌칙은?`처럼 지시어로 시작하거나 `비율은?`처럼 앞 주제의 한 측면만 묻는 후속 질문에만 최근 사용자 질문 1~2개를 붙여 검색어를 보강합니다. 짧다는 이유만으로 후속 질문으로 보지 않아, `전세사기 피해` 같은 새 주제가 이전 질문과 섞이지 않습니다. 정규식 패턴은 `extract-patterns.ts`에 분리해 새 조건을 추가하기 쉽게 구성했습니다.
 
 ### 5. 하이브리드 검색 (벡터 + 키워드 RRF)
 
-벡터 검색만으로는 "서울 청년" 같은 구조적 조건 매칭이 약하고, 키워드 검색만으로는 서술형 검색이 불가능합니다. 두 결과를 RRF(Reciprocal Rank Fusion)로 합산하고, JA 코드 구조화 필터 + 연령/컨텍스트 후처리 + 조건/지역/키워드 기반 최종 재정렬로 정확도를 높였습니다. 지역 필터 검색과 전국 후보 검색을 함께 수행해 중앙부처/전국형 혜택이 누락되지 않도록 했습니다.
+벡터 검색만으로는 "서울 청년" 같은 구조적 조건 매칭이 약하고, 키워드 검색만으로는 서술형 검색이 불가능합니다. 두 결과를 RRF(Reciprocal Rank Fusion)로 합산하고(키워드는 형태소 분석이 없는 `simple` 사전이라 OR + 접두 매칭으로 질의), JA 코드 구조화 필터 + 연령/컨텍스트 후처리 + 조건/지역/키워드 기반 최종 재정렬로 정확도를 높였습니다. 지역 필터 검색과 전국 후보 검색을 함께 수행해 중앙부처/전국형 혜택이 누락되지 않도록 했습니다.
 
 ---
 
@@ -271,7 +279,7 @@ LLM 호출 없이 정규식 기반으로 조건을 즉시 추출합니다:
   -> "장애인 고용 의무 민간기업 기준으로 벌칙은?"
 ```
 
-반대로 질문이 이미 충분히 구체적이거나 `처음부터`, `다른 주제` 같은 표현이 들어오면 이전 문맥을 잇지 않습니다.
+반대로 지시어나 측면 질문이 아닌 새 질문이거나, `처음부터`, `다른 주제` 같은 표현이 들어오면 이전 문맥을 잇지 않습니다.
 
 ### 하이브리드 검색 상세
 
@@ -285,10 +293,10 @@ coalesce(1.0 / (rrf_k + rank_v), 0) + coalesce(1.0 / (rrf_k + rank_k), 0) as rrf
 greatest(cosine_sim, 0) * 0.7 + (rrf_score * 30) * 0.3 as similarity
 ```
 
-DB에서 가져온 후보는 애플리케이션 레이어에서 한 번 더 재정렬합니다:
+DB에서 가져온 후보는 애플리케이션 레이어에서 한 번 더 재정렬합니다. 재정렬 점수는 `score`에 따로 담고, 카드에 표시하는 원본 `similarity`는 덮어쓰지 않습니다:
 
 ```typescript
-finalScore =
+score =
   similarity
   + keywordBoost       // 서비스명/본문 키워드 매칭
   + regionBoost        // 시군구/광역시도/전국형 서비스
@@ -305,11 +313,14 @@ finalScore =
 ## 자체 텍스트 측정 모듈
 
 ```
-src/lib/text-layout/
+src/lib/text-layout/                 # 도메인 무관 측정 엔진
 ├── cache.ts          # LRU 캐시 (font + text -> width, 최대 2000항목)
 ├── measure.ts        # Canvas measureText + 누적 폭 배열 (Float64Array)
-├── prepared.ts       # 이진탐색 줄바꿈 + 마크다운 파싱 + 복합 높이 추정
-└── use-message-height.ts  # React 훅 + @tanstack/react-virtual 연동
+└── prepared.ts       # 이진탐색 줄바꿈 + 마크다운 파싱
+
+src/features/chat/
+├── lib/message-height.ts            # 말풍선 너비·패딩을 반영한 메시지 높이 추정
+└── hooks/use-message-virtualizer.ts # React 훅 + @tanstack/react-virtual 연동
 ```
 
 1. **누적 폭 배열 (O(n))**: Canvas `measureText`로 각 문자의 폭을 측정, `Float64Array`에 누적합 저장. 임의 구간 `text[a..b]`의 폭을 `arr[b] - arr[a]`로 O(1) 계산

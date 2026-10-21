@@ -1,9 +1,9 @@
 import 'server-only';
 
 import { z } from 'zod';
-import { captureError } from '@/core/monitoring/sentry';
-import { SSE_EVENT, type SSEEvent } from '@/core/types/sse';
-import { createSseResponse, sseEvent } from '@/lib/sse-stream';
+import { captureError } from '@/server/monitoring';
+import { SSE_EVENT, type SSEEvent } from '@/features/chat/protocol';
+import { createSseResponse, sseEvent } from '@/app/api/_shared/sse-response';
 import { createRateLimiter, getClientKey } from '@/app/api/_shared/rate-limit';
 
 const searchRequestSchema = z.object({

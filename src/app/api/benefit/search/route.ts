@@ -1,7 +1,8 @@
 import { createStreamSearchPost } from '@/app/api/_shared/stream-search-route';
-import { SSE_EVENT } from '@/core/types/sse';
-import { searchBenefits, type SearchResponse, type SearchResult } from '@/domains/benefit';
-import { summarizeResultsStream } from '@/core/benefit/summarize';
+import { SSE_EVENT } from '@/features/chat/protocol';
+import { searchBenefits } from '@/features/benefit/server/search';
+import type { SearchResponse, SearchResult } from '@/features/benefit/types';
+import { summarizeResultsStream } from '@/features/benefit/server/summarize';
 
 type BenefitResultsResponse = Extract<SearchResponse, { type: 'results' }>;
 

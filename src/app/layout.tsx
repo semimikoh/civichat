@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { Analytics } from '@vercel/analytics/next';
 import { Box, Container , ColorSchemeScript } from '@mantine/core';
-import { Providers } from '@/components/providers/Providers';
-import { TabNav } from '@/components/home/TabNav';
+import { Providers } from '@/components/layout/Providers';
+import { TabNav } from '@/components/layout/TabNav';
 import './globals.css';
 
 export const metadata: Metadata = {

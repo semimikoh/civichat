@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
-import { TabNav } from '@/components/home/TabNav';
+import { TabNav } from '@/components/layout/TabNav';
 
 const mockPush = vi.fn();
 let mockPathname = '/benefit';

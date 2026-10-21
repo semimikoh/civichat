@@ -1,7 +1,7 @@
 import { createStreamSearchPost } from '@/app/api/_shared/stream-search-route';
-import { SSE_EVENT } from '@/core/types/sse';
-import { searchLawArticles } from '@/domains/legal';
-import { summarizeLawResultsStream } from '@/core/legal/summarize';
+import { SSE_EVENT } from '@/features/chat/protocol';
+import { searchLawArticles } from '@/features/legal/server/search';
+import { summarizeLawResultsStream } from '@/features/legal/server/summarize';
 
 export const POST = createStreamSearchPost({
   source: 'legal',
