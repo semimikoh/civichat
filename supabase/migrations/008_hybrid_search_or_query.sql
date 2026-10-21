@@ -4,9 +4,25 @@
 --    → 단어를 OR(|)로 묶고, 'simple' 사전은 형태소 분석을 하지 않으므로 접두 매칭(:*)을 건다
 --      ("청년"이 "청년에게"와 매칭되도록).
 -- 2) 벡터 검색: HNSW는 ef_search(기본 40)개 후보를 뽑은 뒤 WHERE(지역 필터·임계값)를 적용한다.
---    그래서 지역 필터가 있으면 match_count를 크게 요청해도 후보가 수십 건으로 줄어든다.
---    → 요청 건수에 맞춰 ef_search를 트랜잭션 범위에서 올린다.
---    (pgvector 0.8+라면 hnsw.iterative_scan = relaxed_order로 대체할 수 있다)
+--    그래서 지역 필터가 있으면 match_count를 크게 요청해도 후보가 크게 줄고,
+--    해당 지역 데이터가 쿼리와 멀면 0건이 된다.
+--    → pgvector 0.8+의 iterative scan으로, 조건을 만족하는 행이 찰 때까지 인덱스를 계속 탐색한다.
+--      (relaxed_order라 인덱스 출력 순서가 살짝 어긋날 수 있지만, 아래 row_number가 거리로 다시 정렬한다)
+--    → 0.8 미만이면 iterative scan 설정을 건너뛰고 ef_search 상향만 적용한다.
+
+create or replace function configure_filtered_hnsw_scan(match_count int)
+returns void
+language plpgsql
+as $$
+begin
+  perform set_config('hnsw.ef_search', least(greatest(match_count * 4, 100), 1000)::text, true);
+  begin
+    perform set_config('hnsw.iterative_scan', 'relaxed_order', true);
+  exception when others then
+    null; -- pgvector 0.8 미만: 설정이 없으므로 ef_search 상향만 유지
+  end;
+end;
+$$;
 
 create or replace function build_or_prefix_tsquery(query_text text)
 returns tsquery
@@ -52,7 +68,7 @@ declare
   ts_query tsquery;
 begin
   ts_query := build_or_prefix_tsquery(query_text);
-  perform set_config('hnsw.ef_search', least(greatest(match_count * 4, 100), 1000)::text, true);
+  perform configure_filtered_hnsw_scan(match_count);
 
   return query
   with vector_results as (
@@ -145,7 +161,7 @@ declare
   ts_query tsquery;
 begin
   ts_query := build_or_prefix_tsquery(query_text);
-  perform set_config('hnsw.ef_search', least(greatest(match_count * 4, 100), 1000)::text, true);
+  perform configure_filtered_hnsw_scan(match_count);
 
   return query
   with vector_results as (
